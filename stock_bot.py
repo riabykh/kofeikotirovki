@@ -1564,6 +1564,9 @@ Format as a concise, professional morning briefing that an investor would want t
         """Start the bot"""
         logger.info("Starting AI-Powered Stock News Bot...")
         
+        # Initialize the application
+        await self.application.initialize()
+        
         # Set up bot commands menu
         await self.setup_bot_menu()
         
