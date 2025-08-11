@@ -445,34 +445,34 @@ class StockNewsBot:
             logger.info(f"📥 Received /start command from user {update.effective_user.id}")
             user = update.effective_user
             self.db.add_user(user.id, user.username, user.first_name, user.last_name)
-        
-        # Make first user admin automatically
-        if self.db.get_user_count() == 1:
-            self.db.add_admin(user.id)
-        
-        welcome_title = self.get_text(user.id, 'welcome_title')
-        welcome_message = self.get_text(user.id, 'welcome_message').format(name=user.first_name or user.username or "User")
-        what_i_do = self.get_text(user.id, 'what_i_do')
-        daily_news = self.get_text(user.id, 'daily_news')
-        sentiment_analysis = self.get_text(user.id, 'sentiment_analysis')
-        predictions = self.get_text(user.id, 'predictions')
-        auto_updates = self.get_text(user.id, 'auto_updates')
-        commands = self.get_text(user.id, 'commands')
-        news_cmd = self.get_text(user.id, 'news_cmd')
-        topics_cmd = self.get_text(user.id, 'topics_cmd')
-        subscribe_cmd = self.get_text(user.id, 'subscribe_cmd')
-        unsubscribe_cmd = self.get_text(user.id, 'unsubscribe_cmd')
-        language_cmd = self.get_text(user.id, 'language_cmd')
-        help_cmd = self.get_text(user.id, 'help_cmd')
-        status_cmd = self.get_text(user.id, 'status_cmd')
-        stats_cmd = self.get_text(user.id, 'stats_cmd')
-        
-        # Admin commands
-        admin_commands = ""
-        if self.is_admin(user.id):
-            admin_commands = f"\n\n**🔧 Admin Commands:**\n/testnotifications - Test notifications to all users\n/addadmin <user_id> - Add new administrator"
-        
-        message = f"""
+            
+            # Make first user admin automatically
+            if self.db.get_user_count() == 1:
+                self.db.add_admin(user.id)
+            
+            welcome_title = self.get_text(user.id, 'welcome_title')
+            welcome_message = self.get_text(user.id, 'welcome_message').format(name=user.first_name or user.username or "User")
+            what_i_do = self.get_text(user.id, 'what_i_do')
+            daily_news = self.get_text(user.id, 'daily_news')
+            sentiment_analysis = self.get_text(user.id, 'sentiment_analysis')
+            predictions = self.get_text(user.id, 'predictions')
+            auto_updates = self.get_text(user.id, 'auto_updates')
+            commands = self.get_text(user.id, 'commands')
+            news_cmd = self.get_text(user.id, 'news_cmd')
+            topics_cmd = self.get_text(user.id, 'topics_cmd')
+            subscribe_cmd = self.get_text(user.id, 'subscribe_cmd')
+            unsubscribe_cmd = self.get_text(user.id, 'unsubscribe_cmd')
+            language_cmd = self.get_text(user.id, 'language_cmd')
+            help_cmd = self.get_text(user.id, 'help_cmd')
+            status_cmd = self.get_text(user.id, 'status_cmd')
+            stats_cmd = self.get_text(user.id, 'stats_cmd')
+            
+            # Admin commands
+            admin_commands = ""
+            if self.is_admin(user.id):
+                admin_commands = f"\n\n**🔧 Admin Commands:**\n/testnotifications - Test notifications to all users\n/addadmin <user_id> - Add new administrator"
+            
+            message = f"""
 🎉 **{welcome_title}** 🎉
 
 {welcome_message}
@@ -494,8 +494,8 @@ class StockNewsBot:
 {stats_cmd}
 
 Ready to start! Use /news to get your first market digest! 🚀{admin_commands}
-        """
-        
+            """
+            
             await update.message.reply_text(message, parse_mode='Markdown')
             logger.info(f"✅ Sent start response to user {user.id}")
             
