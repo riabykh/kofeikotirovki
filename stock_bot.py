@@ -441,8 +441,10 @@ class StockNewsBot:
     
     async def start_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle /start command"""
-        user = update.effective_user
-        self.db.add_user(user.id, user.username, user.first_name, user.last_name)
+        try:
+            logger.info(f"📥 Received /start command from user {update.effective_user.id}")
+            user = update.effective_user
+            self.db.add_user(user.id, user.username, user.first_name, user.last_name)
         
         # Make first user admin automatically
         if self.db.get_user_count() == 1:
@@ -494,7 +496,15 @@ class StockNewsBot:
 Ready to start! Use /news to get your first market digest! 🚀{admin_commands}
         """
         
-        await update.message.reply_text(message, parse_mode='Markdown')
+            await update.message.reply_text(message, parse_mode='Markdown')
+            logger.info(f"✅ Sent start response to user {user.id}")
+            
+        except Exception as e:
+            logger.error(f"❌ Error in start_command: {e}")
+            try:
+                await update.message.reply_text("❌ Error occurred. Please try again later.")
+            except:
+                pass
     
     async def help_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle /help command"""
@@ -1578,7 +1588,8 @@ Format as a concise, professional morning briefing that an investor would want t
         logger.info("Scheduler started")
         
         # Start polling for updates
-        await self.application.run_polling()
+        logger.info("🔄 Starting bot polling...")
+        await self.application.run_polling(drop_pending_updates=True)
 
 # Main execution
 def main():
