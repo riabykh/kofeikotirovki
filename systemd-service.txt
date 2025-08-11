@@ -1,0 +1,48 @@
+# Stock News Bot Systemd Service
+# Copy this content to: /etc/systemd/system/stock-bot.service
+
+[Unit]
+Description=Stock News Telegram Bot - AI-Powered Market Analysis
+After=network.target network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/stock-telegram-bot
+Environment=PATH=/home/ubuntu/stock-telegram-bot/venv/bin
+Environment=TELEGRAM_BOT_TOKEN=8392034913:AAGk9ZyeVeGhTZzodCvt1hdOGr2SR7GF1qE
+Environment=OPENAI_API_KEY=your_openai_key_here
+
+ExecStart=/home/ubuntu/stock-telegram-bot/venv/bin/python stock_bot.py
+ExecReload=/bin/kill -HUP $MAINPID
+
+# Restart policy
+Restart=always
+RestartSec=10
+StartLimitInterval=60
+StartLimitBurst=3
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/home/ubuntu/stock-telegram-bot
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=stock-bot
+
+[Install]
+WantedBy=multi-user.target
+
+# Commands to use this service:
+# 1. Copy this file to /etc/systemd/system/stock-bot.service
+# 2. sudo systemctl daemon-reload
+# 3. sudo systemctl enable stock-bot.service
+# 4. sudo systemctl start stock-bot.service
+# 5. sudo systemctl status stock-bot.service
+# 6. sudo journalctl -u stock-bot.service -f

@@ -1,0 +1,5 @@
+python-telegram-bot==22.3
+openai==1.47.1
+python-dotenv==1.0.0
+schedule==1.2.2
+asyncio
