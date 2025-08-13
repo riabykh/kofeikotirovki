@@ -498,26 +498,59 @@ Ready to start! Use /news to get your first market digest! 🚀
             
             logger.info(f"🎯 Generating AI digest for user {user_id}: topic='{user_topics}', language='{user_language}'")
             
-            # Get topic-specific news and assets
-            news_items = await self.fetch_ai_news(user_topics, user_language)
-            asset_items = await self.fetch_ai_assets(user_topics, user_language)
-            
-            # Generate and send news digest
-            news_digest = await self.generate_news_digest(news_items, user_topics, user_language)
-            await self.bot.send_message(chat_id=chat_id, text=news_digest, parse_mode='Markdown')
-            
-            # Small delay between messages
-            await asyncio.sleep(0.5)
-            
-            # Generate and send assets digest
-            if asset_items:
-                assets_digest = await self.generate_assets_digest(asset_items, user_topics, user_language)
-                await self.bot.send_message(chat_id=chat_id, text=assets_digest, parse_mode='Markdown')
-                await asyncio.sleep(0.5)
-            
-            # Generate and send predictions digest
-            predictions_digest = await self.generate_predictions_digest(user_topics, user_language)
-            await self.bot.send_message(chat_id=chat_id, text=predictions_digest, parse_mode='Markdown')
+            # Use fallback due to OpenAI compatibility issues
+            try:
+                from openai_fallback import generate_fallback_news, generate_fallback_assets, generate_fallback_digest
+                
+                logger.info("Using fallback mode due to OpenAI library compatibility issues")
+                news_items = generate_fallback_news(user_topics, user_language)
+                asset_items = generate_fallback_assets(user_topics, user_language)
+                
+                # Generate and send unified fallback digest
+                fallback_digest = generate_fallback_digest(news_items, asset_items, user_language)
+                await self.bot.send_message(chat_id=chat_id, text=fallback_digest, parse_mode='Markdown')
+                
+            except Exception as fallback_error:
+                logger.error(f"Fallback also failed: {fallback_error}")
+                # Last resort - simple status message
+                if user_language == 'ru':
+                    status_msg = """📊 **Кофе и Котировки** 📊
+                    
+⚠️ **Временно недоступно**
+🔧 Исправляем совместимость библиотек OpenAI
+                    
+✅ **Что работает:**
+• Telegram Bot API
+• База данных
+• Уведомления
+• Команды бота
+
+❌ **Что исправляем:**
+• Генерация новостей ИИ
+• Анализ активов
+• Прогнозы рынка
+
+💡 **Скоро всё заработает!**"""
+                else:
+                    status_msg = """📊 **Coffee & Quotes** 📊
+                    
+⚠️ **Temporarily Unavailable**
+🔧 Fixing OpenAI library compatibility
+                    
+✅ **What works:**
+• Telegram Bot API
+• Database
+• Notifications  
+• Bot commands
+
+❌ **What we're fixing:**
+• AI news generation
+• Asset analysis
+• Market predictions
+
+💡 **Full service will be restored soon!**"""
+                
+                await self.bot.send_message(chat_id=chat_id, text=status_msg, parse_mode='Markdown')
             
         except Exception as e:
             logger.error(f"Error sending AI digest parts: {e}")
