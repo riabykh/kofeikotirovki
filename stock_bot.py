@@ -572,7 +572,10 @@ Date: [Recent date]
 Focus on high-impact news that would be most relevant to investors and traders in this sector. Be factual and current - no fake links or outdated information."""
 
             # Generate news using AI
-            client = AsyncOpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+            client = AsyncOpenAI(
+                api_key=os.getenv('OPENAI_API_KEY'),
+                http_client=None  # Use default httpx client to avoid conflicts
+            )
             response = await client.chat.completions.create(
                 model="gpt-3.5-turbo",
                 messages=[
@@ -682,7 +685,10 @@ Context: [Brief explanation of price movement]
 Provide 5-7 most important assets in this category with realistic market data."""
 
             # Generate asset data using AI
-            client = AsyncOpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+            client = AsyncOpenAI(
+                api_key=os.getenv('OPENAI_API_KEY'),
+                http_client=None  # Use default httpx client to avoid conflicts
+            )
             response = await client.chat.completions.create(
                 model="gpt-3.5-turbo",
                 messages=[
@@ -795,7 +801,10 @@ Format:
 Use emojis, structure information for easy reading. Be concise - max 800 characters."""
             
             # Process with ChatGPT
-            client = AsyncOpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+            client = AsyncOpenAI(
+                api_key=os.getenv('OPENAI_API_KEY'),
+                http_client=None  # Use default httpx client to avoid conflicts
+            )
             response = await client.chat.completions.create(
                 model="gpt-3.5-turbo",
                 messages=[
@@ -852,7 +861,10 @@ Format:
 Use emojis, be concise - max 600 characters."""
             
             # Process with ChatGPT
-            client = AsyncOpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+            client = AsyncOpenAI(
+                api_key=os.getenv('OPENAI_API_KEY'),
+                http_client=None  # Use default httpx client to avoid conflicts
+            )
             response = await client.chat.completions.create(
                 model="gpt-3.5-turbo",
                 messages=[
@@ -903,7 +915,10 @@ Format:
 Use emojis, be concise - max 600 characters."""
             
             # Process with ChatGPT
-            client = AsyncOpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+            client = AsyncOpenAI(
+                api_key=os.getenv('OPENAI_API_KEY'),
+                http_client=None  # Use default httpx client to avoid conflicts
+            )
             response = await client.chat.completions.create(
                 model="gpt-3.5-turbo",
                 messages=[
@@ -1451,6 +1466,23 @@ def main():
         scheduler_thread.start()
         logger.info("✅ Background scheduler thread started")
         
+        # Clear webhook before starting to prevent conflicts
+        try:
+            logger.info("🧹 Clearing webhook to prevent conflicts...")
+            # Use sync approach since we're not in async context
+            import requests
+            webhook_url = f"https://api.telegram.org/bot{BOT_TOKEN}/deleteWebhook?drop_pending_updates=true"
+            response = requests.post(webhook_url, timeout=10)
+            if response.status_code == 200:
+                logger.info("✅ Webhook cleared successfully")
+            else:
+                logger.warning(f"Webhook clear response: {response.status_code}")
+        except Exception as e:
+            logger.warning(f"Could not clear webhook: {e}")
+        
+        # Wait a moment for Telegram to process
+        time.sleep(2)
+        
         # Start the bot
         try:
             logger.info("🚀 Starting Telegram bot polling...")
@@ -1463,8 +1495,12 @@ def main():
         except Exception as e:
             # Handle specific Telegram conflicts
             if "getUpdates request" in str(e) or "Conflict" in str(e):
-                logger.error("❌ Multiple bot instances detected! Please ensure only one bot is running.")
-                logger.info("💡 To fix: pkill -f stock_bot.py && python3 stock_bot.py")
+                logger.error("❌ Multiple bot instances detected!")
+                logger.error("🔍 This could be caused by:")
+                logger.error("   • Multiple Railway deployments")
+                logger.error("   • Local instance still running")
+                logger.error("   • Previous deployment didn't stop properly")
+                logger.info("💡 Solution: Stop all other deployments and redeploy")
             else:
                 logger.error(f"Bot polling error: {e}")
             raise
