@@ -1,65 +1,87 @@
 #!/bin/bash
 
-# Stock News Bot Startup Script
-# Usage: ./start_bot.sh
+# Кофе и Котировки - Safe Bot Starter
+# Prevents multiple instances and handles conflicts
 
-echo "🚀 Starting Stock News Bot..."
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
 
-# Check if virtual environment exists
-if [ ! -d "venv" ]; then
-    echo "📦 Creating virtual environment..."
-    python3 -m venv venv
-fi
+PIDFILE="bot.pid"
+LOGFILE="bot.log"
 
-# Activate virtual environment
-echo "🔧 Activating virtual environment..."
-source venv/bin/activate
+echo "🚀 Кофе и Котировки - Bot Starter"
+echo "================================"
 
-# Install/update dependencies
-echo "📋 Installing dependencies..."
-pip install -r requirements.txt
+# Function to cleanup on exit
+cleanup() {
+    echo ""
+    echo "🛑 Stopping bot..."
+    if [ -f "$PIDFILE" ]; then
+        PID=$(cat "$PIDFILE")
+        if kill -0 "$PID" 2>/dev/null; then
+            kill "$PID"
+            echo "✅ Bot stopped (PID: $PID)"
+        fi
+        rm -f "$PIDFILE"
+    fi
+    exit 0
+}
 
-# Check environment variables
-if [ -z "$TELEGRAM_BOT_TOKEN" ]; then
-    if [ -f ".env" ]; then
-        echo "📁 Loading environment variables from .env..."
-        export $(grep -v '^#' .env | xargs)
-    else
-        echo "❌ Error: TELEGRAM_BOT_TOKEN not set and no .env file found"
-        echo "Please set environment variables or create .env file"
+# Set up signal handlers
+trap cleanup SIGINT SIGTERM
+
+# Check if bot is already running
+if [ -f "$PIDFILE" ]; then
+    PID=$(cat "$PIDFILE")
+    if kill -0 "$PID" 2>/dev/null; then
+        echo "⚠️  Bot is already running (PID: $PID)"
+        echo "💡 To stop it, run: kill $PID"
+        echo "💡 Or use: pkill -f stock_bot.py"
         exit 1
+    else
+        echo "🔄 Removing stale PID file"
+        rm -f "$PIDFILE"
     fi
 fi
 
-if [ -z "$OPENAI_API_KEY" ]; then
-    echo "❌ Error: OPENAI_API_KEY not set"
-    exit 1
+# Kill any existing instances
+echo "🔍 Checking for existing bot instances..."
+EXISTING_PIDS=$(pgrep -f "stock_bot.py")
+if [ ! -z "$EXISTING_PIDS" ]; then
+    echo "🛑 Stopping existing instances: $EXISTING_PIDS"
+    pkill -f stock_bot.py
+    sleep 2
+    
+    # Force kill if still running
+    REMAINING=$(pgrep -f "stock_bot.py")
+    if [ ! -z "$REMAINING" ]; then
+        echo "💀 Force stopping remaining instances: $REMAINING"
+        pkill -9 -f stock_bot.py
+        sleep 1
+    fi
 fi
 
-# Create necessary directories
-mkdir -p logs data backups
+# Clear webhook and pending updates to avoid conflicts
+echo "🧹 Clearing webhook and pending updates..."
+python3 clear_webhook.py
 
-# Check if database exists, if not create it
-if [ ! -f "stock_bot.db" ]; then
-    echo "🗄️ Database will be created on first run..."
-fi
+echo "🚀 Starting bot..."
+echo "📝 Logs will be written to: $LOGFILE"
+echo "🛑 Press Ctrl+C to stop"
+echo ""
 
 # Start the bot
-echo "🤖 Starting bot..."
-echo "📊 Bot token: ${TELEGRAM_BOT_TOKEN:0:10}..."
-echo "🧠 OpenAI key: ${OPENAI_API_KEY:0:10}..."
-echo "⏰ Started at: $(date)"
+python3 stock_bot.py >> "$LOGFILE" 2>&1 &
+BOT_PID=$!
 
-# Run the bot with error handling
-python stock_bot.py
+# Save PID
+echo $BOT_PID > "$PIDFILE"
+echo "✅ Bot started with PID: $BOT_PID"
 
-# If bot exits, show exit code
-EXIT_CODE=$?
-echo "🛑 Bot stopped with exit code: $EXIT_CODE"
-echo "⏰ Stopped at: $(date)"
+# Monitor the bot
+while kill -0 "$BOT_PID" 2>/dev/null; do
+    sleep 1
+done
 
-if [ $EXIT_CODE -ne 0 ]; then
-    echo "❌ Bot exited with error. Check logs for details."
-fi
-
-exit $EXIT_CODE
+echo "❌ Bot process ended unexpectedly"
+rm -f "$PIDFILE"

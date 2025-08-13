@@ -1,6 +1,8 @@
 import asyncio
 import logging
 import re
+import signal
+import sys
 from datetime import datetime, timedelta
 from telegram import Bot, Update, InlineKeyboardButton, InlineKeyboardMarkup, BotCommand
 from telegram.ext import Application, CommandHandler, ContextTypes, CallbackQueryHandler
@@ -1394,6 +1396,11 @@ Use emojis, be concise - max 600 characters."""
         # Start polling (this handles initialization internally)
         await self.application.run_polling(drop_pending_updates=True)
 
+# Signal handler for graceful shutdown
+def signal_handler(signum, frame):
+    logger.info(f"Received signal {signum}. Initiating graceful shutdown...")
+    sys.exit(0)
+
 # Main execution
 def main():
     # Load environment variables from .env file
@@ -1417,6 +1424,10 @@ def main():
         return
     
     logger.info(f"✅ OpenAI API key loaded: {OPENAI_API_KEY[:10]}...")
+    
+    # Set up signal handlers for graceful shutdown
+    signal.signal(signal.SIGTERM, signal_handler)
+    signal.signal(signal.SIGINT, signal_handler)
     
     # Create and start bot
     bot = StockNewsBot(BOT_TOKEN)
@@ -1443,11 +1454,19 @@ def main():
         # Start the bot
         try:
             logger.info("🚀 Starting Telegram bot polling...")
-            bot.application.run_polling(drop_pending_updates=True)
+            bot.application.run_polling(
+                drop_pending_updates=True,
+                close_loop=False  # Prevent event loop conflicts
+            )
         except KeyboardInterrupt:
             logger.info("Bot stopped by user (Ctrl+C)")
         except Exception as e:
-            logger.error(f"Bot polling error: {e}")
+            # Handle specific Telegram conflicts
+            if "getUpdates request" in str(e) or "Conflict" in str(e):
+                logger.error("❌ Multiple bot instances detected! Please ensure only one bot is running.")
+                logger.info("💡 To fix: pkill -f stock_bot.py && python3 stock_bot.py")
+            else:
+                logger.error(f"Bot polling error: {e}")
             raise
     except KeyboardInterrupt:
         logger.info("Bot stopped by user")
