@@ -1,3 +1,15 @@
+# Environment variables
+.env
+.env.local
+.env.production
+.env.staging
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+stock_bot.db
+
 # Python
 __pycache__/
 *.py[cod]
@@ -16,8 +28,6 @@ parts/
 sdist/
 var/
 wheels/
-pip-wheel-metadata/
-share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
@@ -27,26 +37,8 @@ MANIFEST
 venv/
 env/
 ENV/
-.venv/
-.env/
-
-# Environment variables
-.env
-*.env
-
-# Database
-*.db
-*.sqlite
-*.sqlite3
-
-# Logs
-logs/
-*.log
-
-# Backups
-backups/
-backup_*/
-*.tar.gz
+env.bak/
+venv.bak/
 
 # IDE
 .vscode/
@@ -54,6 +46,10 @@ backup_*/
 *.swp
 *.swo
 *~
+
+# Logs
+*.log
+logs/
 
 # OS
 .DS_Store
@@ -64,32 +60,26 @@ backup_*/
 ehthumbs.db
 Thumbs.db
 
-# Test files
-test_*.py
-debug_*.py
-*_test.py
+# Backup files
+*_backup_*.py
+*.bak
+*.backup
 
 # Temporary files
-tmp/
-temp/
 *.tmp
 *.temp
-
-# Railway deployment
-.railway/
+temp/
+tmp/
 
 # Docker
 .dockerignore
 
-# Node modules (if any)
-node_modules/
-
-# Coverage reports
-htmlcov/
-.coverage
-.coverage.*
-coverage.xml
-*.cover
-*.py,cover
-.hypothesis/
+# Pytest
 .pytest_cache/
+.coverage
+htmlcov/
+
+# MyPy
+.mypy_cache/
+.dmypy.json
+dmypy.json
