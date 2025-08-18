@@ -358,6 +358,8 @@ class StockNewsBot:
         self.application.add_handler(CommandHandler("notify", self.notify_command))
         self.application.add_handler(CommandHandler("addadmin", self.add_admin_command))
         self.application.add_handler(CommandHandler("makeadmin", self.make_admin_command))
+        self.application.add_handler(CommandHandler("testnotifications", self.test_notifications_command))
+        self.application.add_handler(CommandHandler("schedulestatus", self.schedule_status_command))
         self.application.add_handler(CommandHandler("language", self.language_command))
         self.application.add_handler(CommandHandler("topics", self.topics_command))
         
@@ -378,6 +380,8 @@ class StockNewsBot:
             BotCommand("notify", "📢 Send manual notification (admin only)"),
             BotCommand("makeadmin", "👑 Make yourself admin"),
             BotCommand("addadmin", "👑 Add admin user (admin only)"),
+            BotCommand("testnotifications", "🔔 Test auto notifications (admin only)"),
+            BotCommand("schedulestatus", "⏰ Check scheduler status (admin only)"),
             BotCommand("stats", "📈 Bot statistics (admin only)")
         ]
         
@@ -1285,6 +1289,56 @@ Use emojis, be concise - max 600 characters."""
                 "Use `/addadmin <your_id>` command from an existing admin."
             )
     
+    async def test_notifications_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Admin command to test notifications"""
+        user_id = update.effective_user.id
+        
+        if not self.db.is_admin(user_id):
+            await update.message.reply_text("❌ Only admins can use this command")
+            return
+        
+        try:
+            logger.info(f"Admin {user_id} testing notifications to all users")
+            await self.send_daily_notifications()
+            await update.message.reply_text("✅ Test notifications sent to all users!")
+        except Exception as e:
+            logger.error(f"Error in test notifications: {e}")
+            await update.message.reply_text(f"❌ Error sending notifications: {e}")
+    
+    async def schedule_status_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Admin command to check scheduler status"""
+        user_id = update.effective_user.id
+        
+        if not self.db.is_admin(user_id):
+            await update.message.reply_text("❌ Only admins can use this command")
+            return
+        
+        try:
+            import schedule
+            jobs = schedule.jobs
+            
+            if not jobs:
+                status_msg = "❌ **No scheduled jobs found!**\n\nScheduler may not be running properly."
+            else:
+                status_msg = f"📅 **Scheduled Jobs ({len(jobs)} active):**\n\n"
+                for i, job in enumerate(jobs, 1):
+                    next_run = job.next_run.strftime('%Y-%m-%d %H:%M:%S') if job.next_run else "Not scheduled"
+                    status_msg += f"{i}. **Daily Notifications**\n"
+                    status_msg += f"   ⏰ Next run: {next_run}\n"
+                    status_msg += f"   🔄 Frequency: {job.unit}\n\n"
+                
+                # Add current time info
+                from datetime import datetime
+                now = datetime.now()
+                status_msg += f"🕒 **Current time:** {now.strftime('%Y-%m-%d %H:%M:%S')}\n"
+                status_msg += f"📍 **Server timezone:** {now.astimezone().tzinfo}\n"
+            
+            await update.message.reply_text(status_msg, parse_mode='Markdown')
+            
+        except Exception as e:
+            logger.error(f"Error checking schedule status: {e}")
+            await update.message.reply_text(f"❌ Error checking schedule: {e}")
+    
     async def send_daily_notifications(self):
         """Send daily AI-powered notifications to all subscribers"""
         try:
@@ -1320,59 +1374,67 @@ Use emojis, be concise - max 600 characters."""
     
     def schedule_daily_summaries(self):
         """Schedule daily AI-powered summaries - European Timezone (CET/CEST)"""
-        # Daily morning summary at 8:00 AM CET (2:00 AM EST)
-        schedule.every().day.at("02:00").do(
+        # Test notification in 2 minutes (for debugging)
+        from datetime import datetime, timedelta
+        test_time = (datetime.now() + timedelta(minutes=2)).strftime("%H:%M")
+        schedule.every().day.at(test_time).do(
+            lambda: asyncio.create_task(self.send_daily_notifications())
+        )
+        logger.info(f"🧪 Test notification scheduled for {test_time}")
+        
+        # Daily morning summary at 8:00 AM CET = 7:00 AM UTC
+        schedule.every().day.at("07:00").do(
             lambda: asyncio.create_task(self.send_daily_notifications())
         )
         
-        # European market opening summary at 9:00 AM CET (3:00 AM EST) - weekdays only
-        schedule.every().monday.at("03:00").do(
+        # European market opening summary at 9:00 AM CET = 8:00 AM UTC - weekdays only
+        schedule.every().monday.at("08:00").do(
             lambda: asyncio.create_task(self.send_daily_notifications())
         )
-        schedule.every().tuesday.at("03:00").do(
+        schedule.every().tuesday.at("08:00").do(
             lambda: asyncio.create_task(self.send_daily_notifications())
         )
-        schedule.every().wednesday.at("03:00").do(
+        schedule.every().wednesday.at("08:00").do(
             lambda: asyncio.create_task(self.send_daily_notifications())
         )
-        schedule.every().thursday.at("03:00").do(
+        schedule.every().thursday.at("08:00").do(
             lambda: asyncio.create_task(self.send_daily_notifications())
         )
-        schedule.every().friday.at("03:00").do(
-            lambda: asyncio.create_task(self.send_daily_notifications())
-        )
-        
-        # European market closing summary at 5:30 PM CET (11:30 AM EST) - weekdays only
-        schedule.every().monday.at("11:30").do(
-            lambda: asyncio.create_task(self.send_daily_notifications())
-        )
-        schedule.every().tuesday.at("11:30").do(
-            lambda: asyncio.create_task(self.send_daily_notifications())
-        )
-        schedule.every().wednesday.at("11:30").do(
-            lambda: asyncio.create_task(self.send_daily_notifications())
-        )
-        schedule.every().thursday.at("11:30").do(
-            lambda: asyncio.create_task(self.send_daily_notifications())
-        )
-        schedule.every().friday.at("11:30").do(
+        schedule.every().friday.at("08:00").do(
             lambda: asyncio.create_task(self.send_daily_notifications())
         )
         
-        # US market closing summary at 10:00 PM CET (4:00 PM EST) - weekdays only
-        schedule.every().monday.at("16:00").do(
+        # European market closing summary at 5:30 PM CET = 4:30 PM UTC - weekdays only
+        schedule.every().monday.at("16:30").do(
             lambda: asyncio.create_task(self.send_daily_notifications())
         )
-        schedule.every().tuesday.at("16:00").do(
+        schedule.every().tuesday.at("16:30").do(
             lambda: asyncio.create_task(self.send_daily_notifications())
         )
-        schedule.every().wednesday.at("16:00").do(
+        schedule.every().wednesday.at("16:30").do(
             lambda: asyncio.create_task(self.send_daily_notifications())
         )
-        schedule.every().thursday.at("16:00").do(
+        schedule.every().thursday.at("16:30").do(
             lambda: asyncio.create_task(self.send_daily_notifications())
         )
-        schedule.every().friday.at("16:00").do(
+        schedule.every().friday.at("16:30").do(
+            lambda: asyncio.create_task(self.send_daily_notifications())
+        )
+        
+        # US market closing summary at 10:00 PM CET = 9:00 PM UTC - weekdays only
+        schedule.every().monday.at("21:00").do(
+            lambda: asyncio.create_task(self.send_daily_notifications())
+        )
+        schedule.every().tuesday.at("21:00").do(
+            lambda: asyncio.create_task(self.send_daily_notifications())
+        )
+        schedule.every().wednesday.at("21:00").do(
+            lambda: asyncio.create_task(self.send_daily_notifications())
+        )
+        schedule.every().thursday.at("21:00").do(
+            lambda: asyncio.create_task(self.send_daily_notifications())
+        )
+        schedule.every().friday.at("21:00").do(
             lambda: asyncio.create_task(self.send_daily_notifications())
         )
     
