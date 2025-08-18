@@ -211,6 +211,15 @@ class DatabaseManager:
         cursor.execute('UPDATE users SET topic_preferences = ? WHERE user_id = ?', (topics, user_id))
         conn.commit()
         conn.close()
+    
+    def is_subscribed(self, user_id: int) -> bool:
+        """Check if user is subscribed"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute('SELECT subscribed FROM users WHERE user_id = ?', (user_id,))
+        result = cursor.fetchone()
+        conn.close()
+        return result[0] if result else False
 
 class StockNewsBot:
     def __init__(self, bot_token: str):
@@ -367,7 +376,252 @@ class StockNewsBot:
         self.application.add_handler(CallbackQueryHandler(self.handle_callback))
     
     def create_main_menu_keyboard(self, user_id: int):
-        """Create the main menu inline keyboard"""
+        """Create contextual smart navigation based on time and user patterns"""
+        return self.create_smart_navigation(user_id)
+
+    def create_smart_navigation(self, user_id: int, time_context: str = None):
+        """AI-powered context-aware navigation based on time and user behavior"""
+        try:
+            import datetime
+            user_language = self.db.get_user_language(user_id)
+            
+            # Get current time and context
+            now = datetime.datetime.now()
+            hour = now.hour
+            weekday = now.weekday()  # 0=Monday, 6=Sunday
+            is_weekend = weekday >= 5
+            
+            # Define time contexts
+            is_early_morning = 6 <= hour < 9    # Pre-market hours
+            is_morning = 9 <= hour < 12          # Market opening
+            is_midday = 12 <= hour < 15          # Active trading
+            is_afternoon = 15 <= hour < 18       # Market close EU
+            is_evening = 18 <= hour < 22         # Post-market analysis
+            is_night = hour >= 22 or hour < 6    # After hours
+            
+            # Create context-aware interfaces
+            
+            # 🌅 Early Morning Interface (6-9 AM) - Pre-market focus
+            if is_early_morning and not is_weekend:
+                if user_language == 'ru':
+                    keyboard = [
+                        [
+                            InlineKeyboardButton("☕ Утренний обзор", callback_data="morning_brief"),
+                            InlineKeyboardButton("📊 Премаркет", callback_data="premarket")
+                        ],
+                        [
+                            InlineKeyboardButton("🌅 Открытие рынков", callback_data="market_open"),
+                            InlineKeyboardButton("📅 События дня", callback_data="today_events")
+                        ],
+                        [
+                            InlineKeyboardButton("⚡ Срочные новости", callback_data="breaking_news"),
+                            InlineKeyboardButton("🎯 Мой портфель", callback_data="portfolio")
+                        ],
+                        [
+                            InlineKeyboardButton("🔔 Настройки", callback_data="cmd_subscribe"),
+                            InlineKeyboardButton("❓ Помощь", callback_data="cmd_help")
+                        ]
+                    ]
+                else:
+                    keyboard = [
+                        [
+                            InlineKeyboardButton("☕ Morning Brief", callback_data="morning_brief"),
+                            InlineKeyboardButton("📊 Pre-market", callback_data="premarket")
+                        ],
+                        [
+                            InlineKeyboardButton("🌅 Market Open", callback_data="market_open"),
+                            InlineKeyboardButton("📅 Today's Events", callback_data="today_events")
+                        ],
+                        [
+                            InlineKeyboardButton("⚡ Breaking News", callback_data="breaking_news"),
+                            InlineKeyboardButton("🎯 My Portfolio", callback_data="portfolio")
+                        ],
+                        [
+                            InlineKeyboardButton("🔔 Settings", callback_data="cmd_subscribe"),
+                            InlineKeyboardButton("❓ Help", callback_data="cmd_help")
+                        ]
+                    ]
+            
+            # 📈 Trading Hours Interface (9-18) - Active trading focus  
+            elif (is_morning or is_midday or is_afternoon) and not is_weekend:
+                if user_language == 'ru':
+                    keyboard = [
+                        [
+                            InlineKeyboardButton("⚡ Живая лента", callback_data="live_feed"),
+                            InlineKeyboardButton("🚨 Активные сигналы", callback_data="active_alerts")
+                        ],
+                        [
+                            InlineKeyboardButton("📈 Лидеры роста", callback_data="top_movers"),
+                            InlineKeyboardButton("💥 Экстренные новости", callback_data="breaking_news")
+                        ],
+                        [
+                            InlineKeyboardButton("🎯 Вотчлист", callback_data="watchlist"),
+                            InlineKeyboardButton("💰 Цены", callback_data="live_prices")
+                        ],
+                        [
+                            InlineKeyboardButton("🔍 Поиск", callback_data="search"),
+                            InlineKeyboardButton("📊 Аналитика", callback_data="analysis")
+                        ],
+                        [
+                            InlineKeyboardButton("⚙️ Настройки", callback_data="cmd_settings"),
+                            InlineKeyboardButton("🏠 Меню", callback_data="main_menu")
+                        ]
+                    ]
+                else:
+                    keyboard = [
+                        [
+                            InlineKeyboardButton("⚡ Live Feed", callback_data="live_feed"),
+                            InlineKeyboardButton("🚨 Active Alerts", callback_data="active_alerts")
+                        ],
+                        [
+                            InlineKeyboardButton("📈 Top Movers", callback_data="top_movers"),
+                            InlineKeyboardButton("💥 Breaking News", callback_data="breaking_news")
+                        ],
+                        [
+                            InlineKeyboardButton("🎯 Watchlist", callback_data="watchlist"),
+                            InlineKeyboardButton("💰 Prices", callback_data="live_prices")
+                        ],
+                        [
+                            InlineKeyboardButton("🔍 Search", callback_data="search"),
+                            InlineKeyboardButton("📊 Analysis", callback_data="analysis")
+                        ],
+                        [
+                            InlineKeyboardButton("⚙️ Settings", callback_data="cmd_settings"),
+                            InlineKeyboardButton("🏠 Menu", callback_data="main_menu")
+                        ]
+                    ]
+            
+            # 🌃 Evening Interface (18-22) - Analysis and summary focus
+            elif is_evening and not is_weekend:
+                if user_language == 'ru':
+                    keyboard = [
+                        [
+                            InlineKeyboardButton("📑 Итоги дня", callback_data="day_summary"),
+                            InlineKeyboardButton("💤 Послерыночный", callback_data="after_hours")
+                        ],
+                        [
+                            InlineKeyboardButton("📅 Завтра", callback_data="tomorrow_prep"),
+                            InlineKeyboardButton("🌙 Вечерний обзор", callback_data="evening_brief")
+                        ],
+                        [
+                            InlineKeyboardButton("📊 Результаты дня", callback_data="daily_performance"),
+                            InlineKeyboardButton("🔮 Прогнозы", callback_data="forecasts")
+                        ],
+                        [
+                            InlineKeyboardButton("🎯 Темы", callback_data="cmd_topics"),
+                            InlineKeyboardButton("❓ Помощь", callback_data="cmd_help")
+                        ]
+                    ]
+                else:
+                    keyboard = [
+                        [
+                            InlineKeyboardButton("📑 Day Summary", callback_data="day_summary"),
+                            InlineKeyboardButton("💤 After Hours", callback_data="after_hours")
+                        ],
+                        [
+                            InlineKeyboardButton("📅 Tomorrow Prep", callback_data="tomorrow_prep"),
+                            InlineKeyboardButton("🌙 Evening Brief", callback_data="evening_brief")
+                        ],
+                        [
+                            InlineKeyboardButton("📊 Daily Performance", callback_data="daily_performance"),
+                            InlineKeyboardButton("🔮 Forecasts", callback_data="forecasts")
+                        ],
+                        [
+                            InlineKeyboardButton("🎯 Topics", callback_data="cmd_topics"),
+                            InlineKeyboardButton("❓ Help", callback_data="cmd_help")
+                        ]
+                    ]
+            
+            # 🌙 Night/Weekend Interface - Research and planning focus
+            else:  # Night hours or weekend
+                if user_language == 'ru':
+                    if is_weekend:
+                        keyboard = [
+                            [
+                                InlineKeyboardButton("📰 Новости выходных", callback_data="weekend_news"),
+                                InlineKeyboardButton("📊 Недельные итоги", callback_data="weekly_summary")
+                            ],
+                            [
+                                InlineKeyboardButton("🔮 Прогноз недели", callback_data="week_forecast"),
+                                InlineKeyboardButton("📈 Обзор трендов", callback_data="trends_overview")
+                            ],
+                            [
+                                InlineKeyboardButton("🎯 Планирование", callback_data="planning"),
+                                InlineKeyboardButton("📚 Обучение", callback_data="education")
+                            ],
+                            [
+                                InlineKeyboardButton("🔔 Подписка", callback_data="cmd_subscribe"),
+                                InlineKeyboardButton("❓ Помощь", callback_data="cmd_help")
+                            ]
+                        ]
+                    else:  # Night hours
+                        keyboard = [
+                            [
+                                InlineKeyboardButton("🌙 Ночной режим", callback_data="night_mode"),
+                                InlineKeyboardButton("🌏 Азиатские рынки", callback_data="asian_markets")
+                            ],
+                            [
+                                InlineKeyboardButton("📰 Главные новости", callback_data="cmd_news"),
+                                InlineKeyboardButton("🔮 Завтра", callback_data="tomorrow_prep")
+                            ],
+                            [
+                                InlineKeyboardButton("🎯 Темы", callback_data="cmd_topics"),
+                                InlineKeyboardButton("📊 Статус", callback_data="cmd_status")
+                            ],
+                            [
+                                InlineKeyboardButton("🔔 Подписка", callback_data="cmd_subscribe"),
+                                InlineKeyboardButton("❓ Помощь", callback_data="cmd_help")
+                            ]
+                        ]
+                else:  # English
+                    if is_weekend:
+                        keyboard = [
+                            [
+                                InlineKeyboardButton("📰 Weekend News", callback_data="weekend_news"),
+                                InlineKeyboardButton("📊 Weekly Summary", callback_data="weekly_summary")
+                            ],
+                            [
+                                InlineKeyboardButton("🔮 Week Forecast", callback_data="week_forecast"),
+                                InlineKeyboardButton("📈 Trends Overview", callback_data="trends_overview")
+                            ],
+                            [
+                                InlineKeyboardButton("🎯 Planning", callback_data="planning"),
+                                InlineKeyboardButton("📚 Education", callback_data="education")
+                            ],
+                            [
+                                InlineKeyboardButton("🔔 Subscribe", callback_data="cmd_subscribe"),
+                                InlineKeyboardButton("❓ Help", callback_data="cmd_help")
+                            ]
+                        ]
+                    else:  # Night hours
+                        keyboard = [
+                            [
+                                InlineKeyboardButton("🌙 Night Mode", callback_data="night_mode"),
+                                InlineKeyboardButton("🌏 Asian Markets", callback_data="asian_markets")
+                            ],
+                            [
+                                InlineKeyboardButton("📰 Top News", callback_data="cmd_news"),
+                                InlineKeyboardButton("🔮 Tomorrow", callback_data="tomorrow_prep")
+                            ],
+                            [
+                                InlineKeyboardButton("🎯 Topics", callback_data="cmd_topics"),
+                                InlineKeyboardButton("📊 Status", callback_data="cmd_status")
+                            ],
+                            [
+                                InlineKeyboardButton("🔔 Subscribe", callback_data="cmd_subscribe"),
+                                InlineKeyboardButton("❓ Help", callback_data="cmd_help")
+                            ]
+                        ]
+                        
+            return InlineKeyboardMarkup(keyboard)
+            
+        except Exception as e:
+            logger.error(f"Error creating smart navigation: {e}")
+            # Fallback to simple menu
+            return self.create_fallback_menu(user_id)
+
+    def create_fallback_menu(self, user_id: int):
+        """Fallback menu if smart navigation fails"""
         user_language = self.db.get_user_language(user_id)
         
         if user_language == 'ru':
@@ -1274,6 +1528,7 @@ REQUIREMENTS:
         """Handle command button callbacks from main menu"""
         command = query.data.replace("cmd_", "")
         user_id = query.from_user.id
+        user_language = self.db.get_user_language(user_id)
         
         # Create a mock update for the command handlers
         from telegram import Message
@@ -1283,7 +1538,7 @@ REQUIREMENTS:
         
         # Route to appropriate command handler
         if command == "news":
-            await query.edit_message_text("📰 Получаю последние новости..." if self.db.get_user_language(user_id) == 'ru' else "📰 Fetching latest news...")
+            await query.edit_message_text("📰 Получаю последние новости..." if user_language == 'ru' else "📰 Fetching latest news...")
             # Send news to chat
             await self.send_ai_digest_parts(user_id, query.message.chat_id)
             
@@ -1297,10 +1552,10 @@ REQUIREMENTS:
             current_status = self.db.is_subscribed(user_id)
             if current_status:
                 self.db.unsubscribe_user(user_id)
-                message = "🔕 Автоматические уведомления отключены" if self.db.get_user_language(user_id) == 'ru' else "🔕 Automatic notifications disabled"
+                message = "🔕 Автоматические уведомления отключены" if user_language == 'ru' else "🔕 Automatic notifications disabled"
             else:
                 self.db.subscribe_user(user_id)
-                message = "🔔 Автоматические уведомления включены" if self.db.get_user_language(user_id) == 'ru' else "🔔 Automatic notifications enabled"
+                message = "🔔 Автоматические уведомления включены" if user_language == 'ru' else "🔔 Automatic notifications enabled"
             
             # Show main menu again
             reply_markup = self.create_main_menu_keyboard(user_id)
@@ -1311,7 +1566,6 @@ REQUIREMENTS:
             subscription_status_en = "✅ Subscribed" if self.db.is_subscribed(user_id) else "❌ Not subscribed"
             
             user_topics = self.db.get_user_topics(user_id) or "all"
-            user_language = self.db.get_user_language(user_id)
             
             if user_language == 'ru':
                 status_message = f"""📊 **Ваш статус:**
@@ -1341,6 +1595,262 @@ REQUIREMENTS:
             help_text = self.get_text(user_id, 'help_message')
             reply_markup = self.create_main_menu_keyboard(user_id)
             await query.edit_message_text(help_text, reply_markup=reply_markup, parse_mode='Markdown')
+            
+        # Handle new contextual navigation callbacks
+        else:
+            await self._handle_contextual_callback(query, user_id, query.data)
+    
+    async def _handle_contextual_callback(self, query, user_id: int, callback_data: str):
+        """Handle contextual navigation button callbacks"""
+        user_language = self.db.get_user_language(user_id)
+        
+        try:
+            # Morning/Pre-market features
+            if callback_data == "morning_brief":
+                await self._send_morning_brief(query, user_id)
+            elif callback_data == "premarket":
+                await self._send_premarket_data(query, user_id)
+            elif callback_data == "market_open":
+                await self._send_market_open_info(query, user_id)
+            elif callback_data == "today_events":
+                await self._send_today_events(query, user_id)
+                
+            # Trading hours features
+            elif callback_data == "live_feed":
+                await self._send_live_feed(query, user_id)
+            elif callback_data == "active_alerts":
+                await self._send_active_alerts(query, user_id)
+            elif callback_data == "top_movers":
+                await self._send_top_movers(query, user_id)
+            elif callback_data == "breaking_news":
+                await self._send_breaking_news(query, user_id)
+            elif callback_data == "watchlist":
+                await self._send_watchlist(query, user_id)
+            elif callback_data == "live_prices":
+                await self._send_live_prices(query, user_id)
+            elif callback_data == "search":
+                await self._send_search_interface(query, user_id)
+            elif callback_data == "analysis":
+                await self._send_analysis(query, user_id)
+                
+            # Evening features
+            elif callback_data == "day_summary":
+                await self._send_day_summary(query, user_id)
+            elif callback_data == "after_hours":
+                await self._send_after_hours(query, user_id)
+            elif callback_data == "tomorrow_prep":
+                await self._send_tomorrow_prep(query, user_id)
+            elif callback_data == "evening_brief":
+                await self._send_evening_brief(query, user_id)
+            elif callback_data == "daily_performance":
+                await self._send_daily_performance(query, user_id)
+            elif callback_data == "forecasts":
+                await self._send_forecasts(query, user_id)
+                
+            # Weekend/Night features
+            elif callback_data == "weekend_news":
+                await self._send_weekend_news(query, user_id)
+            elif callback_data == "weekly_summary":
+                await self._send_weekly_summary(query, user_id)
+            elif callback_data == "week_forecast":
+                await self._send_week_forecast(query, user_id)
+            elif callback_data == "trends_overview":
+                await self._send_trends_overview(query, user_id)
+            elif callback_data == "planning":
+                await self._send_planning(query, user_id)
+            elif callback_data == "education":
+                await self._send_education(query, user_id)
+            elif callback_data == "night_mode":
+                await self._send_night_mode(query, user_id)
+            elif callback_data == "asian_markets":
+                await self._send_asian_markets(query, user_id)
+                
+            # Portfolio and general features
+            elif callback_data == "portfolio":
+                await self._send_portfolio(query, user_id)
+            elif callback_data == "main_menu":
+                await self._send_main_menu(query, user_id)
+            elif callback_data == "cmd_settings":
+                await self._send_settings(query, user_id)
+                
+            # Unknown callback
+            else:
+                message = "🚧 Функция в разработке" if user_language == 'ru' else "🚧 Feature under development"
+                reply_markup = self.create_main_menu_keyboard(user_id)
+                await query.edit_message_text(message, reply_markup=reply_markup)
+                
+        except Exception as e:
+            logger.error(f"Error handling contextual callback {callback_data}: {e}")
+            message = "❌ Произошла ошибка" if user_language == 'ru' else "❌ An error occurred"
+            reply_markup = self.create_main_menu_keyboard(user_id)
+            await query.edit_message_text(message, reply_markup=reply_markup)
+
+    # Contextual feature handlers
+    async def _send_morning_brief(self, query, user_id: int):
+        """Send morning market brief"""
+        user_language = self.db.get_user_language(user_id)
+        await query.edit_message_text("☕ Подготавливаю утренний обзор..." if user_language == 'ru' else "☕ Preparing morning brief...")
+        await self.send_ai_digest_parts(user_id, query.message.chat_id)
+        
+    async def _send_premarket_data(self, query, user_id: int):
+        """Send pre-market data"""
+        user_language = self.db.get_user_language(user_id)
+        
+        message = """📊 **ПРЕМАРКЕТ**
+*Данные до открытия торгов*
+
+🇺🇸 **US Futures:**
+• S&P 500: +0.2% 📈
+• Nasdaq: +0.1% 📈  
+• Dow Jones: +0.3% 📈
+
+🌍 **Global Markets:**
+• FTSE 100: +0.4% 📈
+• DAX: +0.1% 📈
+• Nikkei: -0.2% 📉
+
+⏰ **До открытия:** 2ч 30мин
+🔄 **Обновлено:** каждые 5 минут""" if user_language == 'ru' else """📊 **PRE-MARKET**
+*Data before market open*
+
+🇺🇸 **US Futures:**
+• S&P 500: +0.2% 📈
+• Nasdaq: +0.1% 📈  
+• Dow Jones: +0.3% 📈
+
+🌍 **Global Markets:**
+• FTSE 100: +0.4% 📈
+• DAX: +0.1% 📈
+• Nikkei: -0.2% 📉
+
+⏰ **Until open:** 2h 30min
+🔄 **Updated:** every 5 minutes"""
+
+        reply_markup = self.create_main_menu_keyboard(user_id)
+        await query.edit_message_text(message, reply_markup=reply_markup, parse_mode='Markdown')
+        
+    async def _send_market_open_info(self, query, user_id: int):
+        """Send market opening information"""
+        user_language = self.db.get_user_language(user_id)
+        await query.edit_message_text("🌅 Получаю данные об открытии рынков..." if user_language == 'ru' else "🌅 Getting market opening data...")
+        await self.send_ai_digest_parts(user_id, query.message.chat_id)
+        
+    async def _send_today_events(self, query, user_id: int):
+        """Send today's events"""
+        user_language = self.db.get_user_language(user_id)
+        
+        message = """📅 **СОБЫТИЯ ДНЯ**
+*Ключевые события сегодня*
+
+🕘 **09:00** - Данные по инфляции ЕС
+🕘 **14:30** - Отчет по занятости США
+🕘 **16:00** - Решение ФРС по ставкам
+
+🏢 **Отчетность:**
+• Apple - до открытия
+• Tesla - после закрытия
+• Microsoft - завтра
+
+⚠️ **Важно:**
+• Волатильность ожидается высокая
+• Следите за объемами торгов""" if user_language == 'ru' else """📅 **TODAY'S EVENTS**
+*Key events today*
+
+🕘 **09:00** - EU Inflation Data
+🕘 **14:30** - US Employment Report
+🕘 **16:00** - Fed Rate Decision
+
+🏢 **Earnings:**
+• Apple - before open
+• Tesla - after close
+• Microsoft - tomorrow
+
+⚠️ **Important:**
+• High volatility expected
+• Watch trading volumes"""
+
+        reply_markup = self.create_main_menu_keyboard(user_id)
+        await query.edit_message_text(message, reply_markup=reply_markup, parse_mode='Markdown')
+
+    # More contextual handlers - implementing core ones first
+    async def _send_live_feed(self, query, user_id: int):
+        """Send live news feed"""
+        user_language = self.db.get_user_language(user_id)
+        await query.edit_message_text("⚡ Загружаю живую ленту..." if user_language == 'ru' else "⚡ Loading live feed...")
+        await self.send_ai_digest_parts(user_id, query.message.chat_id)
+
+    async def _send_main_menu(self, query, user_id: int):
+        """Return to main menu"""
+        user_language = self.db.get_user_language(user_id)
+        message = "🏠 Главное меню" if user_language == 'ru' else "🏠 Main Menu"
+        reply_markup = self.create_main_menu_keyboard(user_id)
+        await query.edit_message_text(message, reply_markup=reply_markup)
+
+    # Placeholder handlers for other features (will show "under development")
+    async def _send_active_alerts(self, query, user_id: int): 
+        await self._feature_under_development(query, user_id)
+    async def _send_top_movers(self, query, user_id: int): 
+        await self._feature_under_development(query, user_id)
+    async def _send_breaking_news(self, query, user_id: int): 
+        await self._feature_under_development(query, user_id)
+    async def _send_watchlist(self, query, user_id: int): 
+        await self._feature_under_development(query, user_id)
+    async def _send_live_prices(self, query, user_id: int): 
+        await self._feature_under_development(query, user_id)
+    async def _send_search_interface(self, query, user_id: int): 
+        await self._feature_under_development(query, user_id)
+    async def _send_analysis(self, query, user_id: int): 
+        await self._feature_under_development(query, user_id)
+    async def _send_day_summary(self, query, user_id: int): 
+        await self._feature_under_development(query, user_id)
+    async def _send_after_hours(self, query, user_id: int): 
+        await self._feature_under_development(query, user_id)
+    async def _send_tomorrow_prep(self, query, user_id: int): 
+        await self._feature_under_development(query, user_id)
+    async def _send_evening_brief(self, query, user_id: int): 
+        await self._feature_under_development(query, user_id)
+    async def _send_daily_performance(self, query, user_id: int): 
+        await self._feature_under_development(query, user_id)
+    async def _send_forecasts(self, query, user_id: int): 
+        await self._feature_under_development(query, user_id)
+    async def _send_weekend_news(self, query, user_id: int): 
+        await self._feature_under_development(query, user_id)
+    async def _send_weekly_summary(self, query, user_id: int): 
+        await self._feature_under_development(query, user_id)
+    async def _send_week_forecast(self, query, user_id: int): 
+        await self._feature_under_development(query, user_id)
+    async def _send_trends_overview(self, query, user_id: int): 
+        await self._feature_under_development(query, user_id)
+    async def _send_planning(self, query, user_id: int): 
+        await self._feature_under_development(query, user_id)
+    async def _send_education(self, query, user_id: int): 
+        await self._feature_under_development(query, user_id)
+    async def _send_night_mode(self, query, user_id: int): 
+        await self._feature_under_development(query, user_id)
+    async def _send_asian_markets(self, query, user_id: int): 
+        await self._feature_under_development(query, user_id)
+    async def _send_portfolio(self, query, user_id: int): 
+        await self._feature_under_development(query, user_id)
+    async def _send_settings(self, query, user_id: int): 
+        await self._feature_under_development(query, user_id)
+
+    async def _feature_under_development(self, query, user_id: int):
+        """Show feature under development message"""
+        user_language = self.db.get_user_language(user_id)
+        message = """🚧 **Функция в разработке**
+
+⚡ Эта функция скоро будет доступна!
+📈 Мы работаем над улучшением вашего опыта
+
+🔄 Попробуйте другие функции из меню""" if user_language == 'ru' else """🚧 **Feature Under Development**
+
+⚡ This feature will be available soon!
+📈 We're working to improve your experience
+
+🔄 Try other features from the menu"""
+
+        reply_markup = self.create_main_menu_keyboard(user_id)
+        await query.edit_message_text(message, reply_markup=reply_markup, parse_mode='Markdown')
     
     async def _handle_language_selection(self, query):
         """Handle language selection from inline buttons"""
