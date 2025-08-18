@@ -366,6 +366,84 @@ class StockNewsBot:
         # Add callback query handler for inline buttons
         self.application.add_handler(CallbackQueryHandler(self.handle_callback))
     
+    def create_main_menu_keyboard(self, user_id: int):
+        """Create the main menu inline keyboard"""
+        user_language = self.db.get_user_language(user_id)
+        
+        if user_language == 'ru':
+            keyboard = [
+                [
+                    InlineKeyboardButton("📰 Новости", callback_data="cmd_news"),
+                    InlineKeyboardButton("🎯 Темы", callback_data="cmd_topics")
+                ],
+                [
+                    InlineKeyboardButton("🔔 Подписка", callback_data="cmd_subscribe"),
+                    InlineKeyboardButton("📊 Статус", callback_data="cmd_status")
+                ],
+                [
+                    InlineKeyboardButton("🌐 Язык", callback_data="cmd_language"),
+                    InlineKeyboardButton("❓ Помощь", callback_data="cmd_help")
+                ]
+            ]
+        else:
+            keyboard = [
+                [
+                    InlineKeyboardButton("📰 News", callback_data="cmd_news"),
+                    InlineKeyboardButton("🎯 Topics", callback_data="cmd_topics")
+                ],
+                [
+                    InlineKeyboardButton("🔔 Subscribe", callback_data="cmd_subscribe"),
+                    InlineKeyboardButton("📊 Status", callback_data="cmd_status")
+                ],
+                [
+                    InlineKeyboardButton("🌐 Language", callback_data="cmd_language"),
+                    InlineKeyboardButton("❓ Help", callback_data="cmd_help")
+                ]
+            ]
+        
+        return InlineKeyboardMarkup(keyboard)
+
+    def create_topics_keyboard(self, user_id: int):
+        """Create topics selection keyboard"""
+        current_topics = self.db.get_user_topics(user_id)
+        user_language = self.db.get_user_language(user_id)
+        
+        keyboard = []
+        row = []
+        
+        for topic_key, topic_names in self.available_topics.items():
+            topic_name = topic_names.get(user_language, topic_names['en'])
+            callback_data = f"topic_{topic_key}"
+            
+            # Mark current selection
+            if topic_key == current_topics:
+                topic_name = f"✅ {topic_name}"
+            
+            row.append(InlineKeyboardButton(topic_name, callback_data=callback_data))
+            
+            if len(row) == 2:  # 2 buttons per row
+                keyboard.append(row)
+                row = []
+        
+        if row:  # Add remaining buttons
+            keyboard.append(row)
+        
+        # Add back to menu button
+        back_text = "🏠 Главное меню" if user_language == 'ru' else "🏠 Main Menu"
+        keyboard.append([InlineKeyboardButton(back_text, callback_data="cmd_help")])
+        
+        return InlineKeyboardMarkup(keyboard)
+
+    def create_language_keyboard(self):
+        """Create language selection keyboard"""
+        keyboard = [
+            [
+                InlineKeyboardButton("🇷🇺 Русский", callback_data="lang_ru"),
+                InlineKeyboardButton("🇺🇸 English", callback_data="lang_en")
+            ]
+        ]
+        return InlineKeyboardMarkup(keyboard)
+
     async def setup_bot_menu(self):
         """Set up the bot's command menu"""
         commands = [
@@ -440,20 +518,33 @@ class StockNewsBot:
 • {predictions}
 • {auto_updates}
 
-**📱 {commands}**
-{news_cmd}
-{topics_cmd}
-{subscribe_cmd}
-{unsubscribe_cmd}
-{language_cmd}
-{help_cmd}
-{status_cmd}
-{stats_cmd}
+🚀 **Используйте кнопки ниже для навигации!**
 
-Ready to start! Use /news to get your first market digest! 🚀
+💡 *Все функции доступны через удобное меню*
+        """ if self.db.get_user_language(user.id) == 'ru' else f"""
+🎉 **{welcome_title}** 🎉
+
+{welcome_message}
+
+**📈 {what_i_do}**
+• {daily_news}
+• {sentiment_analysis}
+• {predictions}
+• {auto_updates}
+
+🚀 **Use the buttons below to navigate!**
+
+💡 *All features available through the convenient menu*
         """
         
-        await update.message.reply_text(message, parse_mode='Markdown')
+        # Create inline keyboard menu
+        reply_markup = self.create_main_menu_keyboard(user.id)
+        
+        await update.message.reply_text(
+            message, 
+            parse_mode='Markdown',
+            reply_markup=reply_markup
+        )
     
     async def help_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle /help command"""
@@ -1143,6 +1234,11 @@ REQUIREMENTS:
         if row:  # Add remaining buttons
             keyboard.append(row)
         
+        # Add back to menu button
+        user_language = self.db.get_user_language(user.id)
+        back_text = "🏠 Главное меню" if user_language == 'ru' else "🏠 Main Menu"
+        keyboard.append([InlineKeyboardButton(back_text, callback_data="cmd_help")])
+        
         # Add current topics info
         current_topic_name = self.available_topics[current_topics][self.db.get_user_language(user.id)]
         
@@ -1155,21 +1251,96 @@ REQUIREMENTS:
         await update.message.reply_text(message_text, reply_markup=reply_markup)
     
     async def handle_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Handle all callback queries (language and topic selection)"""
+        """Handle all callback queries (commands, language, and topic selection)"""
         query = update.callback_query
         await query.answer()
         
         user = query.from_user
         self.db.add_user(user.id, user.username, user.first_name, user.last_name)
         
+        # Handle command buttons from main menu
+        if query.data.startswith("cmd_"):
+            await self._handle_command_callback(query, update)
         # Check if it's a language selection
-        if query.data.startswith("lang_"):
+        elif query.data.startswith("lang_"):
             await self._handle_language_selection(query)
         # Check if it's a topic selection
         elif query.data.startswith("topic_"):
             await self._handle_topic_selection(query)
         else:
             await query.edit_message_text("❌ Invalid selection")
+    
+    async def _handle_command_callback(self, query, update):
+        """Handle command button callbacks from main menu"""
+        command = query.data.replace("cmd_", "")
+        user_id = query.from_user.id
+        
+        # Create a mock update for the command handlers
+        from telegram import Message
+        mock_message = query.message
+        mock_update = update
+        mock_update.message = mock_message
+        
+        # Route to appropriate command handler
+        if command == "news":
+            await query.edit_message_text("📰 Получаю последние новости..." if self.db.get_user_language(user_id) == 'ru' else "📰 Fetching latest news...")
+            # Send news to chat
+            await self.send_ai_digest_parts(user_id, query.message.chat_id)
+            
+        elif command == "topics":
+            # Create topics keyboard
+            topics_keyboard = self.create_topics_keyboard(user_id)
+            topics_text = self.get_text(user_id, 'topics_selection')
+            await query.edit_message_text(topics_text, reply_markup=topics_keyboard, parse_mode='Markdown')
+            
+        elif command == "subscribe":
+            current_status = self.db.is_subscribed(user_id)
+            if current_status:
+                self.db.unsubscribe_user(user_id)
+                message = "🔕 Автоматические уведомления отключены" if self.db.get_user_language(user_id) == 'ru' else "🔕 Automatic notifications disabled"
+            else:
+                self.db.subscribe_user(user_id)
+                message = "🔔 Автоматические уведомления включены" if self.db.get_user_language(user_id) == 'ru' else "🔔 Automatic notifications enabled"
+            
+            # Show main menu again
+            reply_markup = self.create_main_menu_keyboard(user_id)
+            await query.edit_message_text(message, reply_markup=reply_markup)
+            
+        elif command == "status":
+            subscription_status = "✅ Подписан" if self.db.is_subscribed(user_id) else "❌ Не подписан"
+            subscription_status_en = "✅ Subscribed" if self.db.is_subscribed(user_id) else "❌ Not subscribed"
+            
+            user_topics = self.db.get_user_topics(user_id) or "all"
+            user_language = self.db.get_user_language(user_id)
+            
+            if user_language == 'ru':
+                status_message = f"""📊 **Ваш статус:**
+
+🔔 **Уведомления:** {subscription_status}
+🎯 **Темы:** {user_topics}
+🌐 **Язык:** {"🇷🇺 Русский" if user_language == 'ru' else "🇺🇸 English"}
+👤 **ID:** {user_id}"""
+            else:
+                status_message = f"""📊 **Your Status:**
+
+🔔 **Notifications:** {subscription_status_en}
+🎯 **Topics:** {user_topics}
+🌐 **Language:** {"🇷🇺 Russian" if user_language == 'ru' else "🇺🇸 English"}
+👤 **ID:** {user_id}"""
+            
+            reply_markup = self.create_main_menu_keyboard(user_id)
+            await query.edit_message_text(status_message, reply_markup=reply_markup, parse_mode='Markdown')
+            
+        elif command == "language":
+            # Create language keyboard
+            language_keyboard = self.create_language_keyboard()
+            language_text = "🌐 Выберите язык / Choose language:"
+            await query.edit_message_text(language_text, reply_markup=language_keyboard)
+            
+        elif command == "help":
+            help_text = self.get_text(user_id, 'help_message')
+            reply_markup = self.create_main_menu_keyboard(user_id)
+            await query.edit_message_text(help_text, reply_markup=reply_markup, parse_mode='Markdown')
     
     async def _handle_language_selection(self, query):
         """Handle language selection from inline buttons"""
@@ -1189,14 +1360,14 @@ REQUIREMENTS:
         # Set user language
         self.db.set_user_language(user.id, language)
         
-        # Send confirmation message
+        # Send confirmation message with main menu
         if language == "ru":
             confirmation = f"""
 ✅ **Язык успешно изменен!**
 
 🌍 **Текущий язык**: {language_name}
 
-💡 **Совет**: Используйте /start чтобы увидеть интерфейс на новом языке!
+🚀 **Используйте кнопки ниже для навигации!**
             """
         else:
             confirmation = f"""
@@ -1204,10 +1375,12 @@ REQUIREMENTS:
 
 🌍 **Current language**: {language_name}
 
-💡 **Tip**: Use /start to see the interface in your new language!
+🚀 **Use the buttons below to navigate!**
             """
         
-        await query.edit_message_text(confirmation, parse_mode='Markdown')
+        # Show main menu with new language
+        reply_markup = self.create_main_menu_keyboard(user.id)
+        await query.edit_message_text(confirmation, reply_markup=reply_markup, parse_mode='Markdown')
     
     async def _handle_topic_selection(self, query):
         """Handle topic selection callbacks"""
@@ -1242,6 +1415,11 @@ REQUIREMENTS:
             
             if row:
                 keyboard.append(row)
+            
+            # Add back to menu button
+            user_language = self.db.get_user_language(user_id)
+            back_text = "🏠 Главное меню" if user_language == 'ru' else "🏠 Main Menu"
+            keyboard.append([InlineKeyboardButton(back_text, callback_data="cmd_help")])
             
             reply_markup = InlineKeyboardMarkup(keyboard)
             
