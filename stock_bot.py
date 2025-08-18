@@ -557,23 +557,51 @@ Ready to start! Use /news to get your first market digest! 🚀
             
             topic_desc = topic_descriptions[topic].get(language, topic_descriptions[topic]['en'])
             
-            # Create AI prompt for news research
-            current_date = datetime.now().strftime("%Y-%m-%d")
-            prompt = f"""Research and provide the latest financial news for {topic_desc} as of {current_date}.
+            # Create dynamic AI prompt for news research with timestamp and randomization
+            import random
+            now = datetime.now()
+            current_date = now.strftime("%Y-%m-%d")
+            current_time = now.strftime("%H:%M UTC")
+            weekday = now.strftime("%A")
+            
+            # Add randomization to prevent identical responses
+            session_id = random.randint(1000, 9999)
+            variety_phrases = [
+                "breaking developments",
+                "latest market movements", 
+                "recent financial updates",
+                "emerging market trends",
+                "fresh business developments"
+            ]
+            variety_phrase = random.choice(variety_phrases)
+            
+            # Create more specific time context
+            time_context = f"""
+Current Context: {weekday}, {current_date} at {current_time}
+Session: #{session_id}
+Focus: {variety_phrase} from the past 12-24 hours
+"""
 
-Please provide 5-7 most important recent news stories with:
-1. Accurate, factual information from the last 24-48 hours
-2. Clear market impact analysis  
-3. Reliable source attribution
-4. IMPORTANT: Do NOT generate fake URLs - provide real source names only
+            prompt = f"""{time_context}
 
-Format each story as:
-Title: [Concise, informative headline]
-Summary: [2-3 sentences with key details and market impact]
-Source: [Reputable financial news source name like Reuters, Bloomberg, CNBC, etc.]
-Date: [Recent date]
+Research and provide the most recent {variety_phrase} for {topic_desc}.
 
-Focus on high-impact news that would be most relevant to investors and traders in this sector. Be factual and current - no fake links or outdated information."""
+CRITICAL REQUIREMENTS:
+1. Focus ONLY on news from the last 12-24 hours (since yesterday {(now - timedelta(days=1)).strftime('%Y-%m-%d')})
+2. Provide DIFFERENT stories each time - avoid repetition from previous responses
+3. Include specific market impact analysis and price movements
+4. Use REAL source names only (Reuters, Bloomberg, CNBC, MarketWatch, Financial Times, etc.)
+5. NO fake URLs or outdated information
+
+Generate 5-6 UNIQUE recent stories in this format:
+Title: [Specific, timely headline with numbers/percentages if available]
+Summary: [2-3 sentences with concrete details, market impact, and price changes]
+Source: [Real financial news source name]
+Date: [Today's date or yesterday's date only]
+
+Focus on: earnings reports, regulatory announcements, merger news, price targets, analyst upgrades/downgrades, and significant market movements that happened in the last 24 hours.
+
+Make each response UNIQUE and time-specific to avoid repetition."""
 
             # Generate news using AI
             client = AsyncOpenAI(api_key=os.getenv('OPENAI_API_KEY'))
@@ -584,7 +612,7 @@ Focus on high-impact news that would be most relevant to investors and traders i
                     {"role": "user", "content": prompt}
                 ],
                 max_tokens=1200,
-                temperature=0.3
+                temperature=0.7  # Higher temperature for more variety
             )
             
             # Parse AI response into NewsItem objects
@@ -694,7 +722,7 @@ Provide 5-7 most important assets in this category with realistic market data.""
                     {"role": "user", "content": prompt}
                 ],
                 max_tokens=800,
-                temperature=0.3
+                temperature=0.7  # Higher temperature for more variety
             )
             
             # Parse AI response into AssetItem objects
@@ -807,7 +835,7 @@ Use emojis, structure information for easy reading. Be concise - max 800 charact
                     {"role": "user", "content": content}
                 ],
                 max_tokens=400,
-                temperature=0.4
+                temperature=0.7  # Higher temperature for more variety
             )
             
             digest = response.choices[0].message.content
@@ -864,7 +892,7 @@ Use emojis, be concise - max 600 characters."""
                     {"role": "user", "content": content}
                 ],
                 max_tokens=300,
-                temperature=0.4
+                temperature=0.7  # Higher temperature for more variety
             )
             
             digest = response.choices[0].message.content
@@ -882,6 +910,7 @@ Use emojis, be concise - max 600 characters."""
     async def generate_predictions_digest(self, topic: str, language: str) -> str:
         """Generate market predictions and trends using ChatGPT"""
         try:
+            import random
             # Create system prompt based on language
             if language == 'ru':
                 system_prompt = f"""Ты - эксперт по финансовым рынкам. Создай краткий прогноз и анализ тенденций для темы "{topic}" на русском языке.
@@ -912,10 +941,10 @@ Use emojis, be concise - max 600 characters."""
                 model="gpt-3.5-turbo",
                 messages=[
                     {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": f"Generate market predictions and trends for {topic} sector."}
+                    {"role": "user", "content": f"Generate UNIQUE market predictions and trends for {topic} sector based on current {datetime.now().strftime('%A, %Y-%m-%d')} market conditions. Session #{random.randint(1000,9999)}. Focus on different aspects than previous requests."}
                 ],
                 max_tokens=300,
-                temperature=0.5
+                temperature=0.7  # Higher temperature for more variety
             )
             
             digest = response.choices[0].message.content
@@ -1374,14 +1403,6 @@ Use emojis, be concise - max 600 characters."""
     
     def schedule_daily_summaries(self):
         """Schedule daily AI-powered summaries - European Timezone (CET/CEST)"""
-        # Test notification in 2 minutes (for debugging)
-        from datetime import datetime, timedelta
-        test_time = (datetime.now() + timedelta(minutes=2)).strftime("%H:%M")
-        schedule.every().day.at(test_time).do(
-            lambda: asyncio.create_task(self.send_daily_notifications())
-        )
-        logger.info(f"🧪 Test notification scheduled for {test_time}")
-        
         # Daily morning summary at 8:00 AM CET = 7:00 AM UTC
         schedule.every().day.at("07:00").do(
             lambda: asyncio.create_task(self.send_daily_notifications())
