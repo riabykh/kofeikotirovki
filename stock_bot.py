@@ -802,29 +802,54 @@ Provide 5-7 most important assets in this category with realistic market data.""
                 content += f"   Source: {item.source}\n"
                 content += f"   Date: {item.published}\n\n"
             
-            # Create system prompt based on language
+            # Create enhanced system prompt based on language
+            current_date = datetime.now().strftime("%B %d, %Y")
             if language == 'ru':
-                system_prompt = """Ты - эксперт по финансовым рынкам. Создай краткий дайджест новостей на русском языке.
+                system_prompt = f"""Ты - ведущий финансовый аналитик. Создай красивый дайджест новостей в профессиональном стиле.
 
-Формат:
-📰 **ГЛАВНЫЕ НОВОСТИ РЫНКА**
+ФОРМАТ:
+📈 **РЫНОЧНЫЕ НОВОСТИ**
+*{current_date} | Главные события дня*
 
-• Краткое описание ключевых новостей (3-5 самых важных)
-• Анализ влияния на рынок
-• Источники: укажи названия источников новостей
+🔥 **ТОП СОБЫТИЯ:**
+• **Заголовок** | *Источник*
+  ↳ Краткое изложение с ключевыми цифрами и процентами
 
-Используй эмодзи, структурируй информацию для легкого чтения. Будь кратким - не более 800 символов."""
+• **Заголовок** | *Источник*  
+  ↳ Краткое изложение с ключевыми цифрами и процентами
+
+📊 *Ключевая информация для инвесторов*
+
+ТРЕБОВАНИЯ:
+- Используй жирный текст (**text**) для заголовков
+- Курсив (*text*) для источников и деталей
+- Эмодзи для категорий: 🔥🚀📉📈⚡️💰🏭🛢️💎🏦💻⚖️
+- Стрелка ↳ для подробностей
+- Включай конкретные цифры и проценты
+- Максимум 1000 символов"""
             else:
-                system_prompt = """You are a financial markets expert. Create a brief news digest in English.
+                system_prompt = f"""You are a leading financial analyst. Create a beautiful news digest in professional style.
 
-Format:
-📰 **TOP MARKET NEWS**
+FORMAT:
+📈 **MARKET NEWS**
+*{current_date} | Top Stories Today*
 
-• Brief description of key news (3-5 most important)
-• Market impact analysis  
-• Sources: mention news source names
+🔥 **BREAKING:**
+• **Headline** | *Source*
+  ↳ Brief summary with key numbers and percentages
 
-Use emojis, structure information for easy reading. Be concise - max 800 characters."""
+• **Headline** | *Source*
+  ↳ Brief summary with key numbers and percentages
+
+📊 *Key insights for investors*
+
+REQUIREMENTS:
+- Use bold text (**text**) for headlines
+- Italics (*text*) for sources and details
+- Emojis for categories: 🔥🚀📉📈⚡️💰🏭🛢️💎🏦💻⚖️
+- Arrow ↳ for details
+- Include specific numbers and percentages
+- Maximum 1000 characters"""
             
             # Process with ChatGPT
             client = AsyncOpenAI(api_key=os.getenv('OPENAI_API_KEY'))
@@ -834,7 +859,7 @@ Use emojis, structure information for easy reading. Be concise - max 800 charact
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": content}
                 ],
-                max_tokens=400,
+                max_tokens=600,  # Increased for better formatting
                 temperature=0.7  # Higher temperature for more variety
             )
             
@@ -851,89 +876,124 @@ Use emojis, structure information for easy reading. Be concise - max 800 charact
                 return "📰 **News temporarily unavailable** 📰\n\nPlease try again later."
     
     async def generate_assets_digest(self, asset_items: List[AssetItem], topic: str, language: str) -> str:
-        """Generate asset prices digest using ChatGPT"""
+        """Generate beautiful asset prices digest with chips design"""
         try:
-            # Prepare content for ChatGPT
-            content = f"=== ASSET PRICES ===\n\n"
-            for asset in asset_items[:7]:
-                direction = "📈" if asset.change_direction == 'up' else "📉"
-                content += f"{direction} {asset.symbol}: ${asset.price} ({asset.change:+.2f}%)\n"
-            
-            # Create system prompt based on language
+            # Create beautiful price chips format
             if language == 'ru':
-                system_prompt = """Ты - эксперт по финансовым рынкам. Создай краткий анализ цен активов на русском языке.
-
-Формат:
-📈 **КЛЮЧЕВЫЕ АКТИВЫ**
-
-• Цены и изменения по основным активам
-• Тренды и паттерны
-• Краткий анализ движения цен
-
-Используй эмодзи, будь кратким - не более 600 символов."""
+                header = "💰 **ЦЕНЫ АКТИВОВ**\n*Текущие котировки*"
+                footer = "\n📊 *Обновлено в реальном времени*"
             else:
-                system_prompt = """You are a financial markets expert. Create a brief asset price analysis in English.
-
-Format:
-📈 **KEY ASSETS**
-
-• Prices and changes for major assets
-• Trends and patterns
-• Brief price movement analysis
-
-Use emojis, be concise - max 600 characters."""
+                header = "💰 **ASSET PRICES**\n*Current Quotes*"
+                footer = "\n📊 *Updated in real-time*"
             
-            # Process with ChatGPT
-            client = AsyncOpenAI(api_key=os.getenv('OPENAI_API_KEY'))
-            response = await client.chat.completions.create(
-                model="gpt-3.5-turbo",
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": content}
-                ],
-                max_tokens=300,
-                temperature=0.7  # Higher temperature for more variety
-            )
+            # Create price chips
+            price_lines = []
+            for asset in asset_items[:6]:
+                # Determine emoji and styling
+                if asset.change_direction == 'up':
+                    trend_emoji = "📈"
+                    change_color = "🟢"
+                    arrow = "↗️"
+                elif asset.change_direction == 'down':
+                    trend_emoji = "📉" 
+                    change_color = "🔴"
+                    arrow = "↘️"
+                else:
+                    trend_emoji = "➡️"
+                    change_color = "🟡"
+                    arrow = "➡️"
+                
+                # Format price chip
+                price_str = f"${asset.price:,.2f}" if asset.price >= 1 else f"${asset.price:.4f}"
+                change_str = f"{asset.change:+.1f}%"
+                
+                # Create chip-like format
+                chip = f"{trend_emoji} **{asset.symbol}** `{price_str}` {change_color} `{change_str}` {arrow}"
+                price_lines.append(chip)
             
-            digest = response.choices[0].message.content
-            logger.info(f"ChatGPT assets digest generated for language: {language}")
+            # Combine into beautiful format
+            digest = f"{header}\n\n" + "\n".join(price_lines) + f"{footer}"
+            
+            logger.info(f"Beautiful assets digest generated for language: {language}")
             return digest
             
         except Exception as e:
             logger.error(f"Error generating assets digest: {e}")
-            # Return a simple fallback
             if language == 'ru':
-                return "📈 **Цены активов временно недоступны** 📈\n\nПопробуйте позже."
+                return """💰 **ЦЕНЫ АКТИВОВ**
+*Временно недоступны*
+
+🔧 Восстанавливаем подключение к рынкам
+⏰ Попробуйте через несколько минут"""
             else:
-                return "📈 **Asset prices temporarily unavailable** 📈\n\nPlease try again later."
+                return """💰 **ASSET PRICES**
+*Temporarily unavailable*
+
+🔧 Restoring market connection
+⏰ Please try again in a few minutes"""
+            
+
     
     async def generate_predictions_digest(self, topic: str, language: str) -> str:
         """Generate market predictions and trends using ChatGPT"""
         try:
             import random
-            # Create system prompt based on language
+            # Create enhanced professional predictions prompt
+            current_time = datetime.now().strftime("%B %d, %Y")
             if language == 'ru':
-                system_prompt = f"""Ты - эксперт по финансовым рынкам. Создай краткий прогноз и анализ тенденций для темы "{topic}" на русском языке.
+                system_prompt = f"""Ты - ведущий рыночный аналитик. Создай профессиональный прогноз для сектора "{topic}" на {current_time}.
 
-Формат:
-🔮 **ПРОГНОЗЫ И ТЕНДЕНЦИИ**
+ФОРМАТ:
+🔮 **АНАЛИТИЧЕСКИЙ ПРОГНОЗ**
+*{current_time} | Стратегический обзор*
 
-• Анализ настроений рынка
-• Ключевые секторы для внимания
-• Краткие рекомендации для инвесторов
+📊 **ТЕКУЩИЕ ТРЕНДЫ:**
+• **Основной тренд:** направление рынка
+• **Уровни поддержки/сопротивления:** ключевые цифры
+• **Волатильность:** ожидаемые колебания
 
-Используй эмодзи, будь кратким - не более 600 символов."""
+⚡️ **КАТАЛИЗАТОРЫ:**
+• Ключевые события на горизонте
+• Риски и возможности
+
+🎯 **РЕКОМЕНДАЦИИ:**
+• Краткосрочная стратегия (1-2 недели)
+• Среднесрочный взгляд (1-3 месяца)
+
+💡 *Аналитика основана на текущих рыночных условиях*
+
+ТРЕБОВАНИЯ:
+- Профессиональный тон
+- Конкретные уровни цен (где применимо)
+- Эмодзи для структурирования: 📊⚡️🎯💡🔍📈📉🚀⚠️
+- Максимум 800 символов"""
             else:
-                system_prompt = f"""You are a financial markets expert. Create a brief market forecast and trends analysis for "{topic}" in English.
+                system_prompt = f"""You are a leading market analyst. Create a professional forecast for "{topic}" sector on {current_time}.
 
-Format:
-🔮 **FORECASTS & TRENDS**
+FORMAT:
+🔮 **ANALYTICAL FORECAST**
+*{current_time} | Strategic Overview*
 
-• Market sentiment analysis
-• Key sectors to watch
-• Brief investor recommendations
+📊 **CURRENT TRENDS:**
+• **Main trend:** market direction
+• **Support/resistance levels:** key figures
+• **Volatility:** expected fluctuations
 
-Use emojis, be concise - max 600 characters."""
+⚡️ **CATALYSTS:**
+• Key upcoming events
+• Risks and opportunities
+
+🎯 **RECOMMENDATIONS:**
+• Short-term strategy (1-2 weeks)
+• Medium-term outlook (1-3 months)
+
+💡 *Analysis based on current market conditions*
+
+REQUIREMENTS:
+- Professional tone
+- Specific price levels (where applicable)
+- Emojis for structure: 📊⚡️🎯💡🔍📈📉🚀⚠️
+- Maximum 800 characters"""
             
             # Process with ChatGPT
             client = AsyncOpenAI(api_key=os.getenv('OPENAI_API_KEY'))
@@ -943,7 +1003,7 @@ Use emojis, be concise - max 600 characters."""
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": f"Generate UNIQUE market predictions and trends for {topic} sector based on current {datetime.now().strftime('%A, %Y-%m-%d')} market conditions. Session #{random.randint(1000,9999)}. Focus on different aspects than previous requests."}
                 ],
-                max_tokens=300,
+                max_tokens=500,  # Increased for detailed professional analysis
                 temperature=0.7  # Higher temperature for more variety
             )
             
