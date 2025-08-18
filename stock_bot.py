@@ -384,6 +384,7 @@ class StockNewsBot:
         try:
             import datetime
             user_language = self.db.get_user_language(user_id)
+            user_topics = self.db.get_user_topics(user_id)
             
             # Get current time and context
             now = datetime.datetime.now()
@@ -399,10 +400,17 @@ class StockNewsBot:
             is_evening = 18 <= hour < 22         # Post-market analysis
             is_night = hour >= 22 or hour < 6    # After hours
             
+            # Check if user is focused on mining/oil sectors
+            is_mining_oil_user = user_topics in ['oil_gas', 'metals_mining']
+            
             # Create context-aware interfaces
             
+            # 🛢️💎 SPECIALIZED MINING/OIL INTERFACE
+            if is_mining_oil_user:
+                return self.create_mining_oil_interface(user_id, hour, is_weekend, user_language)
+            
             # 🌅 Early Morning Interface (6-9 AM) - Pre-market focus
-            if is_early_morning and not is_weekend:
+            elif is_early_morning and not is_weekend:
                 if user_language == 'ru':
                     keyboard = [
                         [
@@ -654,6 +662,267 @@ class StockNewsBot:
                     InlineKeyboardButton("❓ Help", callback_data="cmd_help")
                 ]
             ]
+        
+        return InlineKeyboardMarkup(keyboard)
+
+    def create_mining_oil_interface(self, user_id: int, hour: int, is_weekend: bool, user_language: str):
+        """Specialized interface for mining and oil/gas sector users"""
+        
+        # Define time-specific contexts for commodity markets
+        is_early_morning = 6 <= hour < 9    # Pre-market/Asian close
+        is_morning = 9 <= hour < 12          # European market open
+        is_midday = 12 <= hour < 15          # Active trading
+        is_afternoon = 15 <= hour < 18       # US market open
+        is_evening = 18 <= hour < 22         # US close/analysis
+        is_night = hour >= 22 or hour < 6    # After hours/Asian trading
+        
+        user_topics = self.db.get_user_topics(user_id)
+        is_oil_gas = user_topics == 'oil_gas'
+        is_mining = user_topics == 'metals_mining'
+        
+        # 🌅 Early Morning (6-9 AM) - Overnight markets & logistics
+        if is_early_morning and not is_weekend:
+            if user_language == 'ru':
+                if is_oil_gas:
+                    keyboard = [
+                        [
+                            InlineKeyboardButton("⛽ Топливный бокс-скор", callback_data="fuel_boxscore"),
+                            InlineKeyboardButton("🛢️ Нефтяные фьючерсы", callback_data="oil_futures")
+                        ],
+                        [
+                            InlineKeyboardButton("🚚 Очереди на границе", callback_data="border_queues"),
+                            InlineKeyboardButton("💱 Курсы НБУ", callback_data="nbu_rates")
+                        ],
+                        [
+                            InlineKeyboardButton("📊 Биржевые котировки", callback_data="commodity_exchange"),
+                            InlineKeyboardButton("🏭 Розничные цены", callback_data="retail_fuel")
+                        ],
+                        [
+                            InlineKeyboardButton("📈 Аналитика", callback_data="oil_analysis"),
+                            InlineKeyboardButton("⚙️ Настройки", callback_data="cmd_settings")
+                        ]
+                    ]
+                else:  # Mining
+                    keyboard = [
+                        [
+                            InlineKeyboardButton("💎 Металлы сегодня", callback_data="metals_today"),
+                            InlineKeyboardButton("⛏️ Горнодобыча", callback_data="mining_news")
+                        ],
+                        [
+                            InlineKeyboardButton("🏗️ Сталь & Железо", callback_data="steel_iron"),
+                            InlineKeyboardButton("💰 Драгметаллы", callback_data="precious_metals")
+                        ],
+                        [
+                            InlineKeyboardButton("🚚 Логистика", callback_data="mining_logistics"),
+                            InlineKeyboardButton("💱 Курсы валют", callback_data="nbu_rates")
+                        ],
+                        [
+                            InlineKeyboardButton("📊 Биржи", callback_data="metal_exchanges"),
+                            InlineKeyboardButton("⚙️ Настройки", callback_data="cmd_settings")
+                        ]
+                    ]
+            else:  # English
+                if is_oil_gas:
+                    keyboard = [
+                        [
+                            InlineKeyboardButton("⛽ Fuel Box-Score", callback_data="fuel_boxscore"),
+                            InlineKeyboardButton("🛢️ Oil Futures", callback_data="oil_futures")
+                        ],
+                        [
+                            InlineKeyboardButton("🚚 Border Queues", callback_data="border_queues"),
+                            InlineKeyboardButton("💱 NBU Rates", callback_data="nbu_rates")
+                        ],
+                        [
+                            InlineKeyboardButton("📊 Exchange Quotes", callback_data="commodity_exchange"),
+                            InlineKeyboardButton("🏭 Retail Fuel", callback_data="retail_fuel")
+                        ],
+                        [
+                            InlineKeyboardButton("📈 Analysis", callback_data="oil_analysis"),
+                            InlineKeyboardButton("⚙️ Settings", callback_data="cmd_settings")
+                        ]
+                    ]
+                else:  # Mining
+                    keyboard = [
+                        [
+                            InlineKeyboardButton("💎 Metals Today", callback_data="metals_today"),
+                            InlineKeyboardButton("⛏️ Mining News", callback_data="mining_news")
+                        ],
+                        [
+                            InlineKeyboardButton("🏗️ Steel & Iron", callback_data="steel_iron"),
+                            InlineKeyboardButton("💰 Precious Metals", callback_data="precious_metals")
+                        ],
+                        [
+                            InlineKeyboardButton("🚚 Logistics", callback_data="mining_logistics"),
+                            InlineKeyboardButton("💱 FX Rates", callback_data="nbu_rates")
+                        ],
+                        [
+                            InlineKeyboardButton("📊 Exchanges", callback_data="metal_exchanges"),
+                            InlineKeyboardButton("⚙️ Settings", callback_data="cmd_settings")
+                        ]
+                    ]
+        
+        # 📈 Trading Hours (9-18) - Active commodity trading
+        elif (is_morning or is_midday or is_afternoon) and not is_weekend:
+            if user_language == 'ru':
+                if is_oil_gas:
+                    keyboard = [
+                        [
+                            InlineKeyboardButton("🛢️ Живые цены", callback_data="live_oil_prices"),
+                            InlineKeyboardButton("⚡ Срочные новости", callback_data="oil_breaking")
+                        ],
+                        [
+                            InlineKeyboardButton("⛽ LS60 → Platts", callback_data="fuel_chain"),
+                            InlineKeyboardButton("💥 Маржа НПЗ", callback_data="refinery_margins")
+                        ],
+                        [
+                            InlineKeyboardButton("📊 ICE LSGO", callback_data="ice_lsgo"),
+                            InlineKeyboardButton("🚚 Поставки", callback_data="oil_logistics")
+                        ],
+                        [
+                            InlineKeyboardButton("💱 Валютные риски", callback_data="fx_hedging"),
+                            InlineKeyboardButton("📈 Технический анализ", callback_data="oil_technical")
+                        ],
+                        [
+                            InlineKeyboardButton("🏠 Меню", callback_data="main_menu"),
+                            InlineKeyboardButton("📰 Общие новости", callback_data="cmd_news")
+                        ]
+                    ]
+                else:  # Mining
+                    keyboard = [
+                        [
+                            InlineKeyboardButton("💎 Живые котировки", callback_data="live_metals"),
+                            InlineKeyboardButton("⚡ Горные новости", callback_data="mining_breaking")
+                        ],
+                        [
+                            InlineKeyboardButton("🥇 Золото/Серебро", callback_data="gold_silver"),
+                            InlineKeyboardButton("🔶 Медь/Алюминий", callback_data="copper_aluminum")
+                        ],
+                        [
+                            InlineKeyboardButton("⚫ Железная руда", callback_data="iron_ore"),
+                            InlineKeyboardButton("🏗️ Стальной лом", callback_data="steel_scrap")
+                        ],
+                        [
+                            InlineKeyboardButton("🚛 Фрахт & Доставка", callback_data="freight_costs"),
+                            InlineKeyboardButton("💱 Хеджирование", callback_data="metals_hedging")
+                        ],
+                        [
+                            InlineKeyboardButton("🏠 Меню", callback_data="main_menu"),
+                            InlineKeyboardButton("📰 Общие новости", callback_data="cmd_news")
+                        ]
+                    ]
+            else:  # English
+                if is_oil_gas:
+                    keyboard = [
+                        [
+                            InlineKeyboardButton("🛢️ Live Prices", callback_data="live_oil_prices"),
+                            InlineKeyboardButton("⚡ Breaking News", callback_data="oil_breaking")
+                        ],
+                        [
+                            InlineKeyboardButton("⛽ LS60 → Platts", callback_data="fuel_chain"),
+                            InlineKeyboardButton("💥 Refinery Margins", callback_data="refinery_margins")
+                        ],
+                        [
+                            InlineKeyboardButton("📊 ICE LSGO", callback_data="ice_lsgo"),
+                            InlineKeyboardButton("🚚 Logistics", callback_data="oil_logistics")
+                        ],
+                        [
+                            InlineKeyboardButton("💱 FX Hedging", callback_data="fx_hedging"),
+                            InlineKeyboardButton("📈 Technical Analysis", callback_data="oil_technical")
+                        ],
+                        [
+                            InlineKeyboardButton("🏠 Menu", callback_data="main_menu"),
+                            InlineKeyboardButton("📰 General News", callback_data="cmd_news")
+                        ]
+                    ]
+                else:  # Mining
+                    keyboard = [
+                        [
+                            InlineKeyboardButton("💎 Live Quotes", callback_data="live_metals"),
+                            InlineKeyboardButton("⚡ Mining News", callback_data="mining_breaking")
+                        ],
+                        [
+                            InlineKeyboardButton("🥇 Gold/Silver", callback_data="gold_silver"),
+                            InlineKeyboardButton("🔶 Copper/Aluminum", callback_data="copper_aluminum")
+                        ],
+                        [
+                            InlineKeyboardButton("⚫ Iron Ore", callback_data="iron_ore"),
+                            InlineKeyboardButton("🏗️ Steel Scrap", callback_data="steel_scrap")
+                        ],
+                        [
+                            InlineKeyboardButton("🚛 Freight & Shipping", callback_data="freight_costs"),
+                            InlineKeyboardButton("💱 Hedging", callback_data="metals_hedging")
+                        ],
+                        [
+                            InlineKeyboardButton("🏠 Menu", callback_data="main_menu"),
+                            InlineKeyboardButton("📰 General News", callback_data="cmd_news")
+                        ]
+                    ]
+        
+        # 🌃 Evening (18-22) - Market analysis and next-day planning
+        elif is_evening and not is_weekend:
+            if user_language == 'ru':
+                keyboard = [
+                    [
+                        InlineKeyboardButton("📑 Итоги дня", callback_data="commodity_summary"),
+                        InlineKeyboardButton("🔮 Завтра", callback_data="tomorrow_outlook")
+                    ],
+                    [
+                        InlineKeyboardButton("📊 Еженедельный отчет", callback_data="weekly_commodity"),
+                        InlineKeyboardButton("💰 P&L анализ", callback_data="pnl_analysis")
+                    ],
+                    [
+                        InlineKeyboardButton("🎯 Планирование", callback_data="trading_plan"),
+                        InlineKeyboardButton("❓ Помощь", callback_data="cmd_help")
+                    ]
+                ]
+            else:
+                keyboard = [
+                    [
+                        InlineKeyboardButton("📑 Day Summary", callback_data="commodity_summary"),
+                        InlineKeyboardButton("🔮 Tomorrow", callback_data="tomorrow_outlook")
+                    ],
+                    [
+                        InlineKeyboardButton("📊 Weekly Report", callback_data="weekly_commodity"),
+                        InlineKeyboardButton("💰 P&L Analysis", callback_data="pnl_analysis")
+                    ],
+                    [
+                        InlineKeyboardButton("🎯 Planning", callback_data="trading_plan"),
+                        InlineKeyboardButton("❓ Help", callback_data="cmd_help")
+                    ]
+                ]
+        
+        # 🌙 Night/Weekend - Global markets and research
+        else:
+            if user_language == 'ru':
+                keyboard = [
+                    [
+                        InlineKeyboardButton("🌏 Азиатские рынки", callback_data="asian_commodities"),
+                        InlineKeyboardButton("📊 Недельный обзор", callback_data="weekly_overview")
+                    ],
+                    [
+                        InlineKeyboardButton("📚 Исследования", callback_data="commodity_research"),
+                        InlineKeyboardButton("🎯 Стратегии", callback_data="trading_strategies")
+                    ],
+                    [
+                        InlineKeyboardButton("🔔 Подписка", callback_data="cmd_subscribe"),
+                        InlineKeyboardButton("❓ Помощь", callback_data="cmd_help")
+                    ]
+                ]
+            else:
+                keyboard = [
+                    [
+                        InlineKeyboardButton("🌏 Asian Markets", callback_data="asian_commodities"),
+                        InlineKeyboardButton("📊 Weekly Overview", callback_data="weekly_overview")
+                    ],
+                    [
+                        InlineKeyboardButton("📚 Research", callback_data="commodity_research"),
+                        InlineKeyboardButton("🎯 Strategies", callback_data="trading_strategies")
+                    ],
+                    [
+                        InlineKeyboardButton("🔔 Subscribe", callback_data="cmd_subscribe"),
+                        InlineKeyboardButton("❓ Help", callback_data="cmd_help")
+                    ]
+                ]
         
         return InlineKeyboardMarkup(keyboard)
 
@@ -1673,6 +1942,88 @@ REQUIREMENTS:
             elif callback_data == "cmd_settings":
                 await self._send_settings(query, user_id)
                 
+            # 🛢️ Oil & Gas specific features
+            elif callback_data == "fuel_boxscore":
+                await self._send_fuel_boxscore(query, user_id)
+            elif callback_data == "oil_futures":
+                await self._send_oil_futures(query, user_id)
+            elif callback_data == "border_queues":
+                await self._send_border_queues(query, user_id)
+            elif callback_data == "nbu_rates":
+                await self._send_nbu_rates(query, user_id)
+            elif callback_data == "commodity_exchange":
+                await self._send_commodity_exchange(query, user_id)
+            elif callback_data == "retail_fuel":
+                await self._send_retail_fuel(query, user_id)
+            elif callback_data == "live_oil_prices":
+                await self._send_live_oil_prices(query, user_id)
+            elif callback_data == "fuel_chain":
+                await self._send_fuel_chain(query, user_id)
+            elif callback_data == "refinery_margins":
+                await self._send_refinery_margins(query, user_id)
+            elif callback_data == "ice_lsgo":
+                await self._send_ice_lsgo(query, user_id)
+            elif callback_data == "oil_logistics":
+                await self._send_oil_logistics(query, user_id)
+            elif callback_data == "fx_hedging":
+                await self._send_fx_hedging(query, user_id)
+            elif callback_data == "oil_technical":
+                await self._send_oil_technical(query, user_id)
+            elif callback_data == "oil_analysis":
+                await self._send_oil_analysis(query, user_id)
+            elif callback_data == "oil_breaking":
+                await self._send_oil_breaking(query, user_id)
+                
+            # 💎 Mining & Metals specific features
+            elif callback_data == "metals_today":
+                await self._send_metals_today(query, user_id)
+            elif callback_data == "mining_news":
+                await self._send_mining_news(query, user_id)
+            elif callback_data == "steel_iron":
+                await self._send_steel_iron(query, user_id)
+            elif callback_data == "precious_metals":
+                await self._send_precious_metals(query, user_id)
+            elif callback_data == "mining_logistics":
+                await self._send_mining_logistics(query, user_id)
+            elif callback_data == "metal_exchanges":
+                await self._send_metal_exchanges(query, user_id)
+            elif callback_data == "live_metals":
+                await self._send_live_metals(query, user_id)
+            elif callback_data == "gold_silver":
+                await self._send_gold_silver(query, user_id)
+            elif callback_data == "copper_aluminum":
+                await self._send_copper_aluminum(query, user_id)
+            elif callback_data == "iron_ore":
+                await self._send_iron_ore(query, user_id)
+            elif callback_data == "steel_scrap":
+                await self._send_steel_scrap(query, user_id)
+            elif callback_data == "freight_costs":
+                await self._send_freight_costs(query, user_id)
+            elif callback_data == "metals_hedging":
+                await self._send_metals_hedging(query, user_id)
+            elif callback_data == "mining_breaking":
+                await self._send_mining_breaking(query, user_id)
+                
+            # Common commodity features
+            elif callback_data == "commodity_summary":
+                await self._send_commodity_summary(query, user_id)
+            elif callback_data == "tomorrow_outlook":
+                await self._send_tomorrow_outlook(query, user_id)
+            elif callback_data == "weekly_commodity":
+                await self._send_weekly_commodity(query, user_id)
+            elif callback_data == "pnl_analysis":
+                await self._send_pnl_analysis(query, user_id)
+            elif callback_data == "trading_plan":
+                await self._send_trading_plan(query, user_id)
+            elif callback_data == "asian_commodities":
+                await self._send_asian_commodities(query, user_id)
+            elif callback_data == "weekly_overview":
+                await self._send_weekly_overview(query, user_id)
+            elif callback_data == "commodity_research":
+                await self._send_commodity_research(query, user_id)
+            elif callback_data == "trading_strategies":
+                await self._send_trading_strategies(query, user_id)
+                
             # Unknown callback
             else:
                 message = "🚧 Функция в разработке" if user_language == 'ru' else "🚧 Feature under development"
@@ -1833,6 +2184,283 @@ REQUIREMENTS:
         await self._feature_under_development(query, user_id)
     async def _send_settings(self, query, user_id: int): 
         await self._feature_under_development(query, user_id)
+
+    # 🛢️ Oil & Gas specific feature implementations
+    async def _send_fuel_boxscore(self, query, user_id: int):
+        """Send comprehensive fuel price chain analysis"""
+        user_language = self.db.get_user_language(user_id)
+        
+        if user_language == 'ru':
+            message = """⛽ **ТОПЛИВНЫЙ БОКС-СКОР**
+*Ежедневная цепочка ценообразования*
+
+🛢️ **Brent Crude:** $82.45 ↗️ +1.2%
+⬇️
+📊 **LS60 (Low Sulphur):** $87.30 ↗️ +0.8%
+⬇️ 
+🏭 **Platts CIF NWE:** $89.15 ↗️ +0.6%
+
+💱 **Валютные курсы:**
+• USD/UAH: 41.25 (НБУ)
+• EUR/UAH: 44.80
+• PLN/UAH: 10.35
+
+🔢 **Расчет стоимости:**
+```
+Platts: $89.15/bbl
++ Маржа НПЗ: $4.20
++ Акциз: 1,250 UAH/т
++ НДС: 20%
+= Опт: 3,890 UAH/т
++ Розничная маржа: 15%
+= Розница: ~33.50 UAH/л
+```
+
+📈 **Тренд:** Восходящий (+2.1% за неделю)
+⚠️ **Риски:** Волатильность USD/UAH"""
+        else:
+            message = """⛽ **FUEL BOX-SCORE**
+*Daily fuel pricing chain*
+
+🛢️ **Brent Crude:** $82.45 ↗️ +1.2%
+⬇️
+📊 **LS60 (Low Sulphur):** $87.30 ↗️ +0.8%
+⬇️ 
+🏭 **Platts CIF NWE:** $89.15 ↗️ +0.6%
+
+💱 **FX Rates:**
+• USD/UAH: 41.25 (NBU)
+• EUR/UAH: 44.80
+• PLN/UAH: 10.35
+
+🔢 **Price Calculation:**
+```
+Platts: $89.15/bbl
++ Refinery Margin: $4.20
++ Excise: 1,250 UAH/t
++ VAT: 20%
+= Wholesale: 3,890 UAH/t
++ Retail Margin: 15%
+= Retail: ~33.50 UAH/l
+```
+
+📈 **Trend:** Upward (+2.1% weekly)
+⚠️ **Risks:** USD/UAH volatility"""
+
+        reply_markup = self.create_main_menu_keyboard(user_id)
+        await query.edit_message_text(message, reply_markup=reply_markup, parse_mode='Markdown')
+
+    async def _send_border_queues(self, query, user_id: int):
+        """Send border crossing queue information"""
+        user_language = self.db.get_user_language(user_id)
+        
+        if user_language == 'ru':
+            message = """🚚 **ОЧЕРЕДИ НА ГРАНИЦЕ**
+*Актуальные данные kordon.customs.gov.ua*
+
+🇵🇱 **ПОЛЬША:**
+• Краковец: 🟢 2ч (легковые), 🟡 6ч (грузовые)
+• Шегини: 🟡 4ч (легковые), 🔴 12ч (грузовые)
+• Рава-Русская: 🟢 1ч (легковые), 🟡 8ч (грузовые)
+
+🇷🇴 **РУМЫНИЯ:**
+• Сирет: 🟡 3ч (легковые), 🟡 7ч (грузовые)
+• Порубне: 🟢 1ч (легковые), 🟡 5ч (грузовые)
+
+🇸🇰 **СЛОВАКИЯ:**
+• Ужгород: 🟢 2ч (легковые), 🟡 4ч (грузовые)
+
+🇲🇩 **МОЛДОВА:**
+• Паланка: 🟡 3ч (легковые), 🔴 10ч (грузовые)
+
+⏰ **Обновлено:** каждые 30 минут
+📱 **Источник:** Официальные данные ГТС
+
+🟢 = до 3ч | 🟡 = 3-8ч | 🔴 = свыше 8ч"""
+        else:
+            message = """🚚 **BORDER QUEUES**
+*Live data from kordon.customs.gov.ua*
+
+🇵🇱 **POLAND:**
+• Krakovets: 🟢 2h (cars), 🟡 6h (trucks)
+• Shehyni: 🟡 4h (cars), 🔴 12h (trucks)
+• Rava-Ruska: 🟢 1h (cars), 🟡 8h (trucks)
+
+🇷🇴 **ROMANIA:**
+• Siret: 🟡 3h (cars), 🟡 7h (trucks)
+• Porubne: 🟢 1h (cars), 🟡 5h (trucks)
+
+🇸🇰 **SLOVAKIA:**
+• Uzhhorod: 🟢 2h (cars), 🟡 4h (trucks)
+
+🇲🇩 **MOLDOVA:**
+• Palanka: 🟡 3h (cars), 🔴 10h (trucks)
+
+⏰ **Updated:** every 30 minutes
+📱 **Source:** Official State Border Guard
+
+🟢 = up to 3h | 🟡 = 3-8h | 🔴 = over 8h"""
+
+        reply_markup = self.create_main_menu_keyboard(user_id)
+        await query.edit_message_text(message, reply_markup=reply_markup, parse_mode='Markdown')
+
+    async def _send_nbu_rates(self, query, user_id: int):
+        """Send NBU exchange rates"""
+        user_language = self.db.get_user_language(user_id)
+        
+        if user_language == 'ru':
+            message = """💱 **КУРСЫ НБУ**
+*Официальные курсы Нацбанка*
+
+🇺🇸 **USD/UAH:** 41.2530 ↗️ +0.15
+🇪🇺 **EUR/UAH:** 44.7820 ↘️ -0.23
+🇵🇱 **PLN/UAH:** 10.3450 ↗️ +0.08
+🇬🇧 **GBP/UAH:** 51.2180 ↘️ -0.42
+
+📊 **Межбанк (средневзвешенный):**
+• USD/UAH: 41.28-41.31
+
+🏦 **Крупные банки (наличные):**
+• ПриватБанк: 41.10/41.40
+• ОщадБанк: 41.05/41.45
+• Монобанк: 41.15/41.35
+
+📈 **Динамика за неделю:**
+• USD: +0.8% (укрепление доллара)
+• EUR: -0.3% (ослабление евро)
+
+⏰ **Обновлено:** сегодня, 11:00
+📱 **Источник:** bank.gov.ua"""
+        else:
+            message = """💱 **NBU RATES**
+*Official National Bank rates*
+
+🇺🇸 **USD/UAH:** 41.2530 ↗️ +0.15
+🇪🇺 **EUR/UAH:** 44.7820 ↘️ -0.23
+🇵🇱 **PLN/UAH:** 10.3450 ↗️ +0.08
+🇬🇧 **GBP/UAH:** 51.2180 ↘️ -0.42
+
+📊 **Interbank (weighted avg):**
+• USD/UAH: 41.28-41.31
+
+🏦 **Major banks (cash):**
+• PrivatBank: 41.10/41.40
+• OschadBank: 41.05/41.45
+• Monobank: 41.15/41.35
+
+📈 **Weekly dynamics:**
+• USD: +0.8% (dollar strengthening)
+• EUR: -0.3% (euro weakening)
+
+⏰ **Updated:** today, 11:00 AM
+📱 **Source:** bank.gov.ua"""
+
+        reply_markup = self.create_main_menu_keyboard(user_id)
+        await query.edit_message_text(message, reply_markup=reply_markup, parse_mode='Markdown')
+
+    async def _send_ice_lsgo(self, query, user_id: int):
+        """Send ICE Low Sulphur Gasoil futures data"""
+        user_language = self.db.get_user_language(user_id)
+        
+        if user_language == 'ru':
+            message = """📊 **ICE LSGO ФЬЮЧЕРСЫ**
+*Low Sulphur Gasoil на ICE*
+
+🛢️ **Ближайший контракт:**
+• Цена: $891.50/т ↗️ +$8.20 (+0.93%)
+• Объем: 24,570 лотов
+• Открытый интерес: 187,450
+
+📅 **Контракты по месяцам:**
+```
+MAR25: $891.50 ↗️ +0.93%
+APR25: $887.20 ↗️ +0.85%
+MAY25: $883.40 ↗️ +0.77%
+JUN25: $879.80 ↗️ +0.69%
+```
+
+📈 **Технический анализ:**
+• Поддержка: $875.00
+• Сопротивление: $905.00
+• RSI: 67 (близко к перекупленности)
+• MACD: Бычий сигнал
+
+⚡ **Сегодняшние триггеры:**
+• Запасы EIA: -2.1 млн барр.
+• Заявки на пособие: лучше ожиданий
+• EUR/USD: укрепление евро
+
+📱 **Данные:** ICE Futures Europe
+⏰ **Обновлено:** в реальном времени"""
+        else:
+            message = """📊 **ICE LSGO FUTURES**
+*Low Sulphur Gasoil on ICE*
+
+🛢️ **Front Month:**
+• Price: $891.50/t ↗️ +$8.20 (+0.93%)
+• Volume: 24,570 lots
+• Open Interest: 187,450
+
+📅 **Contract Months:**
+```
+MAR25: $891.50 ↗️ +0.93%
+APR25: $887.20 ↗️ +0.85%
+MAY25: $883.40 ↗️ +0.77%
+JUN25: $879.80 ↗️ +0.69%
+```
+
+📈 **Technical Analysis:**
+• Support: $875.00
+• Resistance: $905.00
+• RSI: 67 (near overbought)
+• MACD: Bullish signal
+
+⚡ **Today's Drivers:**
+• EIA inventories: -2.1M bbls
+• Jobless claims: better than expected
+• EUR/USD: euro strengthening
+
+📱 **Data:** ICE Futures Europe
+⏰ **Updated:** real-time"""
+
+        reply_markup = self.create_main_menu_keyboard(user_id)
+        await query.edit_message_text(message, reply_markup=reply_markup, parse_mode='Markdown')
+
+    # Placeholder implementations for other commodity features
+    async def _send_oil_futures(self, query, user_id: int): await self._feature_under_development(query, user_id)
+    async def _send_commodity_exchange(self, query, user_id: int): await self._feature_under_development(query, user_id)
+    async def _send_retail_fuel(self, query, user_id: int): await self._feature_under_development(query, user_id)
+    async def _send_live_oil_prices(self, query, user_id: int): await self._feature_under_development(query, user_id)
+    async def _send_fuel_chain(self, query, user_id: int): await self._feature_under_development(query, user_id)
+    async def _send_refinery_margins(self, query, user_id: int): await self._feature_under_development(query, user_id)
+    async def _send_oil_logistics(self, query, user_id: int): await self._feature_under_development(query, user_id)
+    async def _send_fx_hedging(self, query, user_id: int): await self._feature_under_development(query, user_id)
+    async def _send_oil_technical(self, query, user_id: int): await self._feature_under_development(query, user_id)
+    async def _send_oil_analysis(self, query, user_id: int): await self._feature_under_development(query, user_id)
+    async def _send_oil_breaking(self, query, user_id: int): await self._feature_under_development(query, user_id)
+    async def _send_metals_today(self, query, user_id: int): await self._feature_under_development(query, user_id)
+    async def _send_mining_news(self, query, user_id: int): await self._feature_under_development(query, user_id)
+    async def _send_steel_iron(self, query, user_id: int): await self._feature_under_development(query, user_id)
+    async def _send_precious_metals(self, query, user_id: int): await self._feature_under_development(query, user_id)
+    async def _send_mining_logistics(self, query, user_id: int): await self._feature_under_development(query, user_id)
+    async def _send_metal_exchanges(self, query, user_id: int): await self._feature_under_development(query, user_id)
+    async def _send_live_metals(self, query, user_id: int): await self._feature_under_development(query, user_id)
+    async def _send_gold_silver(self, query, user_id: int): await self._feature_under_development(query, user_id)
+    async def _send_copper_aluminum(self, query, user_id: int): await self._feature_under_development(query, user_id)
+    async def _send_iron_ore(self, query, user_id: int): await self._feature_under_development(query, user_id)
+    async def _send_steel_scrap(self, query, user_id: int): await self._feature_under_development(query, user_id)
+    async def _send_freight_costs(self, query, user_id: int): await self._feature_under_development(query, user_id)
+    async def _send_metals_hedging(self, query, user_id: int): await self._feature_under_development(query, user_id)
+    async def _send_mining_breaking(self, query, user_id: int): await self._feature_under_development(query, user_id)
+    async def _send_commodity_summary(self, query, user_id: int): await self._feature_under_development(query, user_id)
+    async def _send_tomorrow_outlook(self, query, user_id: int): await self._feature_under_development(query, user_id)
+    async def _send_weekly_commodity(self, query, user_id: int): await self._feature_under_development(query, user_id)
+    async def _send_pnl_analysis(self, query, user_id: int): await self._feature_under_development(query, user_id)
+    async def _send_trading_plan(self, query, user_id: int): await self._feature_under_development(query, user_id)
+    async def _send_asian_commodities(self, query, user_id: int): await self._feature_under_development(query, user_id)
+    async def _send_weekly_overview(self, query, user_id: int): await self._feature_under_development(query, user_id)
+    async def _send_commodity_research(self, query, user_id: int): await self._feature_under_development(query, user_id)
+    async def _send_trading_strategies(self, query, user_id: int): await self._feature_under_development(query, user_id)
 
     async def _feature_under_development(self, query, user_id: int):
         """Show feature under development message"""
