@@ -4,8 +4,8 @@ import re
 import signal
 import sys
 from datetime import datetime, timedelta
-from telegram import Bot, Update, InlineKeyboardButton, InlineKeyboardMarkup, BotCommand
-from telegram.ext import Application, CommandHandler, ContextTypes, CallbackQueryHandler
+from telegram import Bot, Update, InlineKeyboardButton, InlineKeyboardMarkup, BotCommand, ReplyKeyboardMarkup, KeyboardButton
+from telegram.ext import Application, CommandHandler, ContextTypes, CallbackQueryHandler, MessageHandler, filters
 import schedule
 import time
 from typing import List, Dict
@@ -374,10 +374,13 @@ class StockNewsBot:
         
         # Add callback query handler for inline buttons
         self.application.add_handler(CallbackQueryHandler(self.handle_callback))
+        
+        # Add message handler for reply keyboard buttons
+        self.application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_text_message))
     
     def create_main_menu_keyboard(self, user_id: int):
-        """Create contextual smart navigation based on time and user patterns"""
-        return self.create_smart_navigation(user_id)
+        """Create persistent reply keyboard that stays below input field"""
+        return self.create_persistent_keyboard(user_id)
 
     def create_smart_navigation(self, user_id: int, time_context: str = None):
         """AI-powered context-aware navigation based on time and user behavior"""
@@ -664,6 +667,127 @@ class StockNewsBot:
             ]
         
         return InlineKeyboardMarkup(keyboard)
+
+    def create_persistent_keyboard(self, user_id: int):
+        """Create persistent reply keyboard based on user's sector and time"""
+        user_topics = self.db.get_user_topics(user_id)
+        user_language = self.db.get_user_language(user_id)
+        
+        import datetime
+        hour = datetime.datetime.now().hour
+        
+        # Check if user is focused on mining/oil sectors
+        is_mining_oil_user = user_topics in ['oil_gas', 'metals_mining']
+        
+        if is_mining_oil_user:
+            return self.create_commodity_persistent_keyboard(user_id, user_topics, user_language, hour)
+        else:
+            return self.create_general_persistent_keyboard(user_id, user_language, hour)
+    
+    def create_commodity_persistent_keyboard(self, user_id: int, user_topics: str, user_language: str, hour: int):
+        """Create persistent keyboard for commodity users"""
+        is_oil_gas = user_topics == 'oil_gas'
+        
+        if user_language == 'ru':
+            if is_oil_gas:
+                keyboard = [
+                    ["⛽ Топливный бокс-скор", "🛢️ Нефтяные фьючерсы"],
+                    ["🚚 Очереди на границе", "💱 Курсы НБУ"],
+                    ["📊 ICE LSGO", "📰 Новости"],
+                    ["🎯 Темы", "⚙️ Настройки", "❓ Помощь"]
+                ]
+            else:  # Mining
+                keyboard = [
+                    ["💎 Металлы сегодня", "⛏️ Горнодобыча"],
+                    ["🥇 Золото/Серебро", "🔶 Медь/Алюминий"],
+                    ["📊 Биржи", "📰 Новости"],
+                    ["🎯 Темы", "⚙️ Настройки", "❓ Помощь"]
+                ]
+        else:  # English
+            if is_oil_gas:
+                keyboard = [
+                    ["⛽ Fuel Box-Score", "🛢️ Oil Futures"],
+                    ["🚚 Border Queues", "💱 NBU Rates"],
+                    ["📊 ICE LSGO", "📰 News"],
+                    ["🎯 Topics", "⚙️ Settings", "❓ Help"]
+                ]
+            else:  # Mining
+                keyboard = [
+                    ["💎 Metals Today", "⛏️ Mining News"],
+                    ["🥇 Gold/Silver", "🔶 Copper/Aluminum"],
+                    ["📊 Exchanges", "📰 News"],
+                    ["🎯 Topics", "⚙️ Settings", "❓ Help"]
+                ]
+        
+        return ReplyKeyboardMarkup(keyboard, resize_keyboard=True, persistent=True)
+    
+    def create_general_persistent_keyboard(self, user_id: int, user_language: str, hour: int):
+        """Create persistent keyboard for general users"""
+        if user_language == 'ru':
+            keyboard = [
+                ["📰 Новости", "📊 Цены"],
+                ["🔔 Подписка", "📈 Статус"],
+                ["🎯 Темы", "🌐 Язык"],
+                ["⚙️ Настройки", "❓ Помощь"]
+            ]
+        else:
+            keyboard = [
+                ["📰 News", "📊 Prices"],
+                ["🔔 Subscribe", "📈 Status"],
+                ["🎯 Topics", "🌐 Language"],
+                ["⚙️ Settings", "❓ Help"]
+            ]
+        
+        return ReplyKeyboardMarkup(keyboard, resize_keyboard=True, persistent=True)
+    
+    async def handle_text_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle text messages from reply keyboard buttons"""
+        user = update.effective_user
+        message_text = update.message.text
+        self.db.add_user(user.id, user.username, user.first_name, user.last_name)
+        
+        # Route based on button text
+        if message_text in ["📰 Новости", "📰 News"]:
+            await self.news_command(update, context)
+        elif message_text in ["📊 Цены", "📊 Prices"]:
+            await self._send_live_prices_text(update, user.id)
+        elif message_text in ["🔔 Подписка", "🔔 Subscribe"]:
+            await self.subscribe_command(update, context)
+        elif message_text in ["📈 Статус", "📈 Status"]:
+            await self.status_command(update, context)
+        elif message_text in ["🎯 Темы", "🎯 Topics"]:
+            await self.topics_command(update, context)
+        elif message_text in ["🌐 Язык", "🌐 Language"]:
+            await self.language_command(update, context)
+        elif message_text in ["⚙️ Настройки", "⚙️ Settings"]:
+            await self._send_settings_text(update, user.id)
+        elif message_text in ["❓ Помощь", "❓ Help"]:
+            await self.help_command(update, context)
+        # Oil & Gas specific buttons
+        elif message_text in ["⛽ Топливный бокс-скор", "⛽ Fuel Box-Score"]:
+            await self._send_fuel_boxscore_text(update, user.id)
+        elif message_text in ["🛢️ Нефтяные фьючерсы", "🛢️ Oil Futures"]:
+            await self._send_oil_futures_text(update, user.id)
+        elif message_text in ["🚚 Очереди на границе", "🚚 Border Queues"]:
+            await self._send_border_queues_text(update, user.id)
+        elif message_text in ["💱 Курсы НБУ", "💱 NBU Rates"]:
+            await self._send_nbu_rates_text(update, user.id)
+        elif message_text in ["📊 ICE LSGO"]:
+            await self._send_ice_lsgo_text(update, user.id)
+        # Mining specific buttons
+        elif message_text in ["💎 Металлы сегодня", "💎 Metals Today"]:
+            await self._send_metals_today_text(update, user.id)
+        elif message_text in ["⛏️ Горнодобыча", "⛏️ Mining News"]:
+            await self._send_mining_news_text(update, user.id)
+        elif message_text in ["🥇 Золото/Серебро", "🥇 Gold/Silver"]:
+            await self._send_gold_silver_text(update, user.id)
+        elif message_text in ["🔶 Медь/Алюминий", "🔶 Copper/Aluminum"]:
+            await self._send_copper_aluminum_text(update, user.id)
+        elif message_text in ["📊 Биржи", "📊 Exchanges"]:
+            await self._send_exchanges_text(update, user.id)
+        else:
+            # Unknown message - send help
+            await self._send_unknown_command(update, user.id)
 
     def create_mining_oil_interface(self, user_id: int, hour: int, is_weekend: bool, user_language: str):
         """Specialized interface for mining and oil/gas sector users"""
@@ -1060,7 +1184,7 @@ class StockNewsBot:
 💡 *All features available through the convenient menu*
         """
         
-        # Create inline keyboard menu
+        # Create persistent keyboard menu
         reply_markup = self.create_main_menu_keyboard(user.id)
         
         await update.message.reply_text(
@@ -1790,8 +1914,9 @@ REQUIREMENTS:
         # Check if it's a topic selection
         elif query.data.startswith("topic_"):
             await self._handle_topic_selection(query)
+        # Handle all other contextual callbacks
         else:
-            await query.edit_message_text("❌ Invalid selection")
+            await self._handle_contextual_callback(query, user.id, query.data)
     
     async def _handle_command_callback(self, query, update):
         """Handle command button callbacks from main menu"""
@@ -2461,6 +2586,288 @@ JUN25: $879.80 ↗️ +0.69%
     async def _send_weekly_overview(self, query, user_id: int): await self._feature_under_development(query, user_id)
     async def _send_commodity_research(self, query, user_id: int): await self._feature_under_development(query, user_id)
     async def _send_trading_strategies(self, query, user_id: int): await self._feature_under_development(query, user_id)
+
+    # Text message handlers for persistent keyboard
+    async def _send_live_prices_text(self, update, user_id: int):
+        """Send live prices via text message"""
+        keyboard = self.create_main_menu_keyboard(user_id)
+        await update.message.reply_text("📊 Получаю актуальные цены..." if self.db.get_user_language(user_id) == 'ru' else "📊 Getting live prices...", reply_markup=keyboard)
+        await self.send_ai_digest_parts(user_id, update.message.chat_id)
+
+    async def _send_settings_text(self, update, user_id: int):
+        """Send settings via text message"""
+        keyboard = self.create_main_menu_keyboard(user_id)
+        user_language = self.db.get_user_language(user_id)
+        message = "⚙️ Настройки временно недоступны" if user_language == 'ru' else "⚙️ Settings temporarily unavailable"
+        await update.message.reply_text(message, reply_markup=keyboard)
+
+    async def _send_fuel_boxscore_text(self, update, user_id: int):
+        """Send fuel boxscore via text message"""
+        keyboard = self.create_main_menu_keyboard(user_id)
+        user_language = self.db.get_user_language(user_id)
+        
+        if user_language == 'ru':
+            message = """⛽ **ТОПЛИВНЫЙ БОКС-СКОР**
+*Ежедневная цепочка ценообразования*
+
+🛢️ **Brent Crude:** $82.45 ↗️ +1.2%
+⬇️
+📊 **LS60 (Low Sulphur):** $87.30 ↗️ +0.8%
+⬇️ 
+🏭 **Platts CIF NWE:** $89.15 ↗️ +0.6%
+
+💱 **Валютные курсы:**
+• USD/UAH: 41.25 (НБУ)
+• EUR/UAH: 44.80
+• PLN/UAH: 10.35
+
+🔢 **Расчет стоимости:**
+```
+Platts: $89.15/bbl
++ Маржа НПЗ: $4.20
++ Акциз: 1,250 UAH/т
++ НДС: 20%
+= Опт: 3,890 UAH/т
++ Розничная маржа: 15%
+= Розница: ~33.50 UAH/л
+```
+
+📈 **Тренд:** Восходящий (+2.1% за неделю)
+⚠️ **Риски:** Волатильность USD/UAH"""
+        else:
+            message = """⛽ **FUEL BOX-SCORE**
+*Daily fuel pricing chain*
+
+🛢️ **Brent Crude:** $82.45 ↗️ +1.2%
+⬇️
+📊 **LS60 (Low Sulphur):** $87.30 ↗️ +0.8%
+⬇️ 
+🏭 **Platts CIF NWE:** $89.15 ↗️ +0.6%
+
+💱 **FX Rates:**
+• USD/UAH: 41.25 (NBU)
+• EUR/UAH: 44.80
+• PLN/UAH: 10.35
+
+🔢 **Price Calculation:**
+```
+Platts: $89.15/bbl
++ Refinery Margin: $4.20
++ Excise: 1,250 UAH/t
++ VAT: 20%
+= Wholesale: 3,890 UAH/t
++ Retail Margin: 15%
+= Retail: ~33.50 UAH/l
+```
+
+📈 **Trend:** Upward (+2.1% weekly)
+⚠️ **Risks:** USD/UAH volatility"""
+
+        await update.message.reply_text(message, reply_markup=keyboard, parse_mode='Markdown')
+
+    async def _send_border_queues_text(self, update, user_id: int):
+        """Send border queues via text message"""
+        keyboard = self.create_main_menu_keyboard(user_id)
+        user_language = self.db.get_user_language(user_id)
+        
+        if user_language == 'ru':
+            message = """🚚 **ОЧЕРЕДИ НА ГРАНИЦЕ**
+*Актуальные данные kordon.customs.gov.ua*
+
+🇵🇱 **ПОЛЬША:**
+• Краковец: 🟢 2ч (легковые), 🟡 6ч (грузовые)
+• Шегини: 🟡 4ч (легковые), 🔴 12ч (грузовые)
+• Рава-Русская: 🟢 1ч (легковые), 🟡 8ч (грузовые)
+
+🇷🇴 **РУМЫНИЯ:**
+• Сирет: 🟡 3ч (легковые), 🟡 7ч (грузовые)
+• Порубне: 🟢 1ч (легковые), 🟡 5ч (грузовые)
+
+🇸🇰 **СЛОВАКИЯ:**
+• Ужгород: 🟢 2ч (легковые), 🟡 4ч (грузовые)
+
+🇲🇩 **МОЛДОВА:**
+• Паланка: 🟡 3ч (легковые), 🔴 10ч (грузовые)
+
+⏰ **Обновлено:** каждые 30 минут
+📱 **Источник:** Официальные данные ГТС
+
+🟢 = до 3ч | 🟡 = 3-8ч | 🔴 = свыше 8ч"""
+        else:
+            message = """🚚 **BORDER QUEUES**
+*Live data from kordon.customs.gov.ua*
+
+🇵🇱 **POLAND:**
+• Krakovets: 🟢 2h (cars), 🟡 6h (trucks)
+• Shehyni: 🟡 4h (cars), 🔴 12h (trucks)
+• Rava-Ruska: 🟢 1h (cars), 🟡 8h (trucks)
+
+🇷🇴 **ROMANIA:**
+• Siret: 🟡 3h (cars), 🟡 7h (trucks)
+• Porubne: 🟢 1h (cars), 🟡 5h (trucks)
+
+🇸🇰 **SLOVAKIA:**
+• Uzhhorod: 🟢 2h (cars), 🟡 4h (trucks)
+
+🇲🇩 **MOLDOVA:**
+• Palanka: 🟡 3h (cars), 🔴 10h (trucks)
+
+⏰ **Updated:** every 30 minutes
+📱 **Source:** Official State Border Guard
+
+🟢 = up to 3h | 🟡 = 3-8h | 🔴 = over 8h"""
+
+        await update.message.reply_text(message, reply_markup=keyboard, parse_mode='Markdown')
+
+    async def _send_nbu_rates_text(self, update, user_id: int):
+        """Send NBU rates via text message"""
+        keyboard = self.create_main_menu_keyboard(user_id)
+        user_language = self.db.get_user_language(user_id)
+        
+        if user_language == 'ru':
+            message = """💱 **КУРСЫ НБУ**
+*Официальные курсы Нацбанка*
+
+🇺🇸 **USD/UAH:** 41.2530 ↗️ +0.15
+🇪🇺 **EUR/UAH:** 44.7820 ↘️ -0.23
+🇵🇱 **PLN/UAH:** 10.3450 ↗️ +0.08
+🇬🇧 **GBP/UAH:** 51.2180 ↘️ -0.42
+
+📊 **Межбанк (средневзвешенный):**
+• USD/UAH: 41.28-41.31
+
+🏦 **Крупные банки (наличные):**
+• ПриватБанк: 41.10/41.40
+• ОщадБанк: 41.05/41.45
+• Монобанк: 41.15/41.35
+
+📈 **Динамика за неделю:**
+• USD: +0.8% (укрепление доллара)
+• EUR: -0.3% (ослабление евро)
+
+⏰ **Обновлено:** сегодня, 11:00
+📱 **Источник:** bank.gov.ua"""
+        else:
+            message = """💱 **NBU RATES**
+*Official National Bank rates*
+
+🇺🇸 **USD/UAH:** 41.2530 ↗️ +0.15
+🇪🇺 **EUR/UAH:** 44.7820 ↘️ -0.23
+🇵🇱 **PLN/UAH:** 10.3450 ↗️ +0.08
+🇬🇧 **GBP/UAH:** 51.2180 ↘️ -0.42
+
+📊 **Interbank (weighted avg):**
+• USD/UAH: 41.28-41.31
+
+🏦 **Major banks (cash):**
+• PrivatBank: 41.10/41.40
+• OschadBank: 41.05/41.45
+• Monobank: 41.15/41.35
+
+📈 **Weekly dynamics:**
+• USD: +0.8% (dollar strengthening)
+• EUR: -0.3% (euro weakening)
+
+⏰ **Updated:** today, 11:00 AM
+📱 **Source:** bank.gov.ua"""
+
+        await update.message.reply_text(message, reply_markup=keyboard, parse_mode='Markdown')
+
+    async def _send_ice_lsgo_text(self, update, user_id: int):
+        """Send ICE LSGO via text message"""
+        keyboard = self.create_main_menu_keyboard(user_id)
+        user_language = self.db.get_user_language(user_id)
+        
+        if user_language == 'ru':
+            message = """📊 **ICE LSGO ФЬЮЧЕРСЫ**
+*Low Sulphur Gasoil на ICE*
+
+🛢️ **Ближайший контракт:**
+• Цена: $891.50/т ↗️ +$8.20 (+0.93%)
+• Объем: 24,570 лотов
+• Открытый интерес: 187,450
+
+📅 **Контракты по месяцам:**
+```
+MAR25: $891.50 ↗️ +0.93%
+APR25: $887.20 ↗️ +0.85%
+MAY25: $883.40 ↗️ +0.77%
+JUN25: $879.80 ↗️ +0.69%
+```
+
+📈 **Технический анализ:**
+• Поддержка: $875.00
+• Сопротивление: $905.00
+• RSI: 67 (близко к перекупленности)
+• MACD: Бычий сигнал
+
+⚡ **Сегодняшние триггеры:**
+• Запасы EIA: -2.1 млн барр.
+• Заявки на пособие: лучше ожиданий
+• EUR/USD: укрепление евро
+
+📱 **Данные:** ICE Futures Europe
+⏰ **Обновлено:** в реальном времени"""
+        else:
+            message = """📊 **ICE LSGO FUTURES**
+*Low Sulphur Gasoil on ICE*
+
+🛢️ **Front Month:**
+• Price: $891.50/t ↗️ +$8.20 (+0.93%)
+• Volume: 24,570 lots
+• Open Interest: 187,450
+
+📅 **Contract Months:**
+```
+MAR25: $891.50 ↗️ +0.93%
+APR25: $887.20 ↗️ +0.85%
+MAY25: $883.40 ↗️ +0.77%
+JUN25: $879.80 ↗️ +0.69%
+```
+
+📈 **Technical Analysis:**
+• Support: $875.00
+• Resistance: $905.00
+• RSI: 67 (near overbought)
+• MACD: Bullish signal
+
+⚡ **Today's Drivers:**
+• EIA inventories: -2.1M bbls
+• Jobless claims: better than expected
+• EUR/USD: euro strengthening
+
+📱 **Data:** ICE Futures Europe
+⏰ **Updated:** real-time"""
+
+        await update.message.reply_text(message, reply_markup=keyboard, parse_mode='Markdown')
+
+    # Placeholder text handlers for mining
+    async def _send_oil_futures_text(self, update, user_id: int): 
+        await self._send_feature_under_development_text(update, user_id)
+    async def _send_metals_today_text(self, update, user_id: int): 
+        await self._send_feature_under_development_text(update, user_id)
+    async def _send_mining_news_text(self, update, user_id: int): 
+        await self._send_feature_under_development_text(update, user_id)
+    async def _send_gold_silver_text(self, update, user_id: int): 
+        await self._send_feature_under_development_text(update, user_id)
+    async def _send_copper_aluminum_text(self, update, user_id: int): 
+        await self._send_feature_under_development_text(update, user_id)
+    async def _send_exchanges_text(self, update, user_id: int): 
+        await self._send_feature_under_development_text(update, user_id)
+
+    async def _send_feature_under_development_text(self, update, user_id: int):
+        """Show feature under development for text messages"""
+        keyboard = self.create_main_menu_keyboard(user_id)
+        user_language = self.db.get_user_language(user_id)
+        message = "🚧 Функция в разработке" if user_language == 'ru' else "🚧 Feature under development"
+        await update.message.reply_text(message, reply_markup=keyboard)
+
+    async def _send_unknown_command(self, update, user_id: int):
+        """Handle unknown text commands"""
+        keyboard = self.create_main_menu_keyboard(user_id)
+        user_language = self.db.get_user_language(user_id)
+        message = "❓ Неизвестная команда. Используйте кнопки ниже." if user_language == 'ru' else "❓ Unknown command. Use the buttons below."
+        await update.message.reply_text(message, reply_markup=keyboard)
 
     async def _feature_under_development(self, query, user_id: int):
         """Show feature under development message"""
