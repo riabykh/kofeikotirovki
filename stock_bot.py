@@ -1243,7 +1243,7 @@ class StockNewsBot:
             user_topics = self.db.get_user_topics(user_id)
             user_language = self.db.get_user_language(user_id)
             
-            logger.info(f"🎯 Generating AI educational content for user {user_id}: topic='{user_topics}', language='{user_language}'")
+            logger.info(f"🎯 Fetching real financial data for user {user_id}: topic='{user_topics}', language='{user_language}'")
             
             # Send professional disclaimer
             if user_language == 'ru':
@@ -1294,8 +1294,8 @@ Fetching live data..."""
             await self.bot.send_message(chat_id=chat_id, text=predictions_digest, parse_mode='Markdown')
             
         except Exception as e:
-            logger.error(f"Error sending AI educational content: {e}")
-            error_msg = "❌ Произошла ошибка при генерации образовательного контента" if user_language == 'ru' else "❌ Error generating educational content"
+            logger.error(f"Error fetching real financial data: {e}")
+            error_msg = "❌ Произошла ошибка при получении финансовых данных" if user_language == 'ru' else "❌ Error fetching financial data"
             await self.bot.send_message(chat_id=chat_id, text=error_msg)
     
     async def fetch_real_news(self, topic: str, language: str) -> List[NewsItem]:
