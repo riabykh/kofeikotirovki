@@ -1239,20 +1239,45 @@ class StockNewsBot:
             user_topics = self.db.get_user_topics(user_id)
             user_language = self.db.get_user_language(user_id)
             
-            logger.info(f"🎯 Generating AI digest for user {user_id}: topic='{user_topics}', language='{user_language}'")
+            logger.info(f"🎯 Generating AI educational content for user {user_id}: topic='{user_topics}', language='{user_language}'")
             
-            # Get topic-specific news and assets
+            # Send disclaimer first
+            if user_language == 'ru':
+                disclaimer = """⚠️ **ВАЖНОЕ ПРЕДУПРЕЖДЕНИЕ**
+
+🤖 Это образовательный AI-контент, НЕ реальные новости или цены!
+
+📚 **Цель:** Изучение принципов финансовых рынков
+❌ **НЕ является:** Инвестиционными советами или реальными данными
+💡 **Рекомендация:** Используйте профессиональные источники для принятия решений
+
+Продолжаем с образовательным контентом..."""
+            else:
+                disclaimer = """⚠️ **IMPORTANT WARNING**
+
+🤖 This is educational AI content, NOT real news or prices!
+
+📚 **Purpose:** Learning financial market principles  
+❌ **NOT:** Investment advice or real data
+💡 **Recommendation:** Use professional sources for decisions
+
+Continuing with educational content..."""
+            
+            await self.bot.send_message(chat_id=chat_id, text=disclaimer, parse_mode='Markdown')
+            await asyncio.sleep(1)
+            
+            # Get topic-specific educational content
             news_items = await self.fetch_ai_news(user_topics, user_language)
             asset_items = await self.fetch_ai_assets(user_topics, user_language)
             
-            # Generate and send news digest
+            # Generate and send educational digest
             news_digest = await self.generate_news_digest(news_items, user_topics, user_language)
             await self.bot.send_message(chat_id=chat_id, text=news_digest, parse_mode='Markdown')
             
             # Small delay between messages
             await asyncio.sleep(0.5)
             
-            # Generate and send assets digest
+            # Generate and send educational assets content
             if asset_items:
                 assets_digest = await self.generate_assets_digest(asset_items, user_topics, user_language)
                 await self.bot.send_message(chat_id=chat_id, text=assets_digest, parse_mode='Markdown')
@@ -1263,8 +1288,8 @@ class StockNewsBot:
             await self.bot.send_message(chat_id=chat_id, text=predictions_digest, parse_mode='Markdown')
             
         except Exception as e:
-            logger.error(f"Error sending AI digest parts: {e}")
-            error_msg = "❌ Произошла ошибка при генерации новостей" if user_language == 'ru' else "❌ Error generating news"
+            logger.error(f"Error sending AI educational content: {e}")
+            error_msg = "❌ Произошла ошибка при генерации образовательного контента" if user_language == 'ru' else "❌ Error generating educational content"
             await self.bot.send_message(chat_id=chat_id, text=error_msg)
     
     async def fetch_ai_news(self, topic: str, language: str) -> List[NewsItem]:
@@ -1323,31 +1348,32 @@ Focus: {variety_phrase} from the past 12-24 hours
 
             prompt = f"""{time_context}
 
-Research and provide the most recent {variety_phrase} for {topic_desc}.
+⚠️ CRITICAL: You are generating EDUCATIONAL CONTENT ONLY for a financial news bot.
 
-CRITICAL REQUIREMENTS:
-1. Focus ONLY on news from the last 12-24 hours (since yesterday {(now - timedelta(days=1)).strftime('%Y-%m-%d')})
-2. Provide DIFFERENT stories each time - avoid repetition from previous responses
-3. Include specific market impact analysis and price movements
-4. Use REAL source names only (Reuters, Bloomberg, CNBC, MarketWatch, Financial Times, etc.)
-5. NO fake URLs or outdated information
+STRICT REQUIREMENTS:
+1. Generate ONLY general market analysis and educational content
+2. DO NOT create specific news stories or events  
+3. DO NOT mention specific companies, prices, or data points
+4. DO NOT include fake sources, URLs, or dates
+5. Focus on general market trends and educational insights
+6. Always indicate content is AI-generated and educational
 
-Generate 5-6 UNIQUE recent stories in this format:
-Title: [Specific, timely headline with numbers/percentages if available]
-Summary: [2-3 sentences with concrete details, market impact, and price changes]
-Source: [Real financial news source name]
-Date: [Today's date or yesterday's date only]
+Generate educational market insights in this format:
+Topic: [General market theme - e.g., "Technology Sector Trends"]
+Analysis: [Educational overview of general market concepts and trends]
+Educational Note: [Learning point about market analysis]
+Disclaimer: "AI-generated educational content only"
 
-Focus on: earnings reports, regulatory announcements, merger news, price targets, analyst upgrades/downgrades, and significant market movements that happened in the last 24 hours.
+Example topics: Market volatility concepts, sector rotation patterns, economic indicators overview, investment principles, risk management basics.
 
-Make each response UNIQUE and time-specific to avoid repetition."""
+Make each response educational and generic - NO specific news events or data."""
 
             # Generate news using AI
             client = AsyncOpenAI(api_key=os.getenv('OPENAI_API_KEY'))
             response = await client.chat.completions.create(
                 model="gpt-3.5-turbo",
                 messages=[
-                    {"role": "system", "content": "You are a professional financial news researcher. Provide accurate, timely market news with proper source attribution. Focus on factual information and clear market analysis."},
+                    {"role": "system", "content": "You are a financial education specialist. Generate ONLY educational content about market concepts and general trends. NEVER create fake news, specific events, company data, or prices. Always include disclaimers that content is AI-generated and educational only. Focus on teaching market principles and analysis concepts."},
                     {"role": "user", "content": prompt}
                 ],
                 max_tokens=1200,
@@ -1436,28 +1462,32 @@ Make each response UNIQUE and time-specific to avoid repetition."""
             
             asset_desc = asset_descriptions[topic].get(language, asset_descriptions[topic]['en'])
             
-            # Create AI prompt for asset research
-            prompt = f"""Provide current market data for {asset_desc}.
+            # Create AI prompt for educational asset information
+            prompt = f"""⚠️ CRITICAL: Generate EDUCATIONAL CONTENT ONLY - NO real prices or specific data.
 
-For each asset, provide:
-1. Current price (in USD where applicable)
-2. Recent price change (24h percentage)
-3. Brief context about the price movement
+Provide educational information about {asset_desc} without specific prices.
 
-Format each asset as:
-Symbol: [Asset symbol/name]
-Price: [Current price with currency]
-Change: [Percentage change with + or - sign]
-Context: [Brief explanation of price movement]
+For each asset category, provide:
+1. Educational overview of the asset type
+2. General market factors that affect these assets
+3. Educational notes about analysis methods
 
-Provide 5-7 most important assets in this category with realistic market data."""
+Format each educational section as:
+Asset Category: [General asset type - e.g., "Technology Stocks"]
+Educational Overview: [How this asset type works and what drives it]
+Analysis Methods: [How traders typically analyze these assets]
+Risk Factors: [General risk considerations]
+Disclaimer: "Educational content only - no real prices or investment advice"
+
+Provide 5-6 educational sections about different asset categories.
+DO NOT include real prices, specific companies, or current market data."""
 
             # Generate asset data using AI
             client = AsyncOpenAI(api_key=os.getenv('OPENAI_API_KEY'))
             response = await client.chat.completions.create(
                 model="gpt-3.5-turbo",
                 messages=[
-                    {"role": "system", "content": "You are a financial market data analyst. Provide realistic current market prices and changes for financial assets. Use typical market ranges and realistic price movements."},
+                    {"role": "system", "content": "You are a financial education specialist. Generate ONLY educational content about asset types and market concepts. NEVER provide real prices, specific company data, or current market information. Always include disclaimers. Focus on teaching how different asset classes work and general analysis principles."},
                     {"role": "user", "content": prompt}
                 ],
                 max_tokens=800,
@@ -1544,50 +1574,50 @@ Provide 5-7 most important assets in this category with realistic market data.""
             # Create enhanced system prompt based on language
             current_date = datetime.now().strftime("%B %d, %Y")
             if language == 'ru':
-                system_prompt = f"""Ты - ведущий финансовый аналитик. Создай красивый дайджест новостей в профессиональном стиле.
+                system_prompt = f"""⚠️ ВАЖНО: Ты создаешь ОБРАЗОВАТЕЛЬНЫЙ контент о финансовых рынках.
 
 ФОРМАТ:
-📈 **РЫНОЧНЫЕ НОВОСТИ**
-*{current_date} | Главные события дня*
+🎓 **ОБРАЗОВАТЕЛЬНЫЙ ДАЙДЖЕСТ**
+*{current_date} | Изучение рыночных концепций*
 
-🔥 **ТОП СОБЫТИЯ:**
-• **Заголовок** | *Источник*
-  ↳ Краткое изложение с ключевыми цифрами и процентами
+📚 **ОБРАЗОВАТЕЛЬНЫЕ ТЕМЫ:**
+• **Концепция рынка** | *Образовательный материал*
+  ↳ Объяснение принципов без конкретных цен и событий
 
-• **Заголовок** | *Источник*  
-  ↳ Краткое изложение с ключевыми цифрами и процентами
+• **Принцип анализа** | *Обучающий контент*  
+  ↳ Как работают рыночные механизмы
 
-📊 *Ключевая информация для инвесторов*
+⚠️ **ВАЖНОЕ ПРЕДУПРЕЖДЕНИЕ:**
+Это AI-сгенерированный образовательный контент, НЕ реальные новости или инвестиционные советы.
 
 ТРЕБОВАНИЯ:
-- Используй жирный текст (**text**) для заголовков
-- Курсив (*text*) для источников и деталей
-- Эмодзи для категорий: 🔥🚀📉📈⚡️💰🏭🛢️💎🏦💻⚖️
-- Стрелка ↳ для подробностей
-- Включай конкретные цифры и проценты
+- НЕ создавай конкретные новости или события
+- НЕ указывай реальные цены или компании  
+- Фокусируйся на обучении принципам рынка
+- Включай предупреждения об AI-контенте
 - Максимум 1000 символов"""
             else:
-                system_prompt = f"""You are a leading financial analyst. Create a beautiful news digest in professional style.
+                system_prompt = f"""⚠️ IMPORTANT: You are creating EDUCATIONAL content about financial markets.
 
 FORMAT:
-📈 **MARKET NEWS**
-*{current_date} | Top Stories Today*
+🎓 **EDUCATIONAL DIGEST**
+*{current_date} | Learning Market Concepts*
 
-🔥 **BREAKING:**
-• **Headline** | *Source*
-  ↳ Brief summary with key numbers and percentages
+📚 **EDUCATIONAL TOPICS:**
+• **Market Concept** | *Educational Material*
+  ↳ Explanation of principles without specific prices or events
 
-• **Headline** | *Source*
-  ↳ Brief summary with key numbers and percentages
+• **Analysis Method** | *Educational Content*  
+  ↳ How market mechanisms work
 
-📊 *Key insights for investors*
+⚠️ **IMPORTANT WARNING:**
+This is AI-generated educational content, NOT real news or investment advice.
 
 REQUIREMENTS:
-- Use bold text (**text**) for headlines
-- Italics (*text*) for sources and details
-- Emojis for categories: 🔥🚀📉📈⚡️💰🏭🛢️💎🏦💻⚖️
-- Arrow ↳ for details
-- Include specific numbers and percentages
+- DO NOT create specific news or events
+- DO NOT mention real prices or companies  
+- Focus on teaching market principles
+- Include AI content warnings
 - Maximum 1000 characters"""
             
             # Process with ChatGPT
@@ -1617,13 +1647,13 @@ REQUIREMENTS:
     async def generate_assets_digest(self, asset_items: List[AssetItem], topic: str, language: str) -> str:
         """Generate beautiful asset prices digest with chips design"""
         try:
-            # Create beautiful price chips format
+            # Create educational content format with disclaimers
             if language == 'ru':
-                header = "💰 **ЦЕНЫ АКТИВОВ**\n*Текущие котировки*"
-                footer = "\n📊 *Обновлено в реальном времени*"
+                header = "🎓 **ОБРАЗОВАТЕЛЬНЫЙ КОНТЕНТ**\n*Изучение типов активов*"
+                footer = "\n⚠️ **ВАЖНО:** Это образовательный AI-контент, НЕ реальные цены или инвестиционные советы.\n📚 *Для принятия инвестиционных решений используйте профессиональные источники данных.*"
             else:
-                header = "💰 **ASSET PRICES**\n*Current Quotes*"
-                footer = "\n📊 *Updated in real-time*"
+                header = "🎓 **EDUCATIONAL CONTENT**\n*Learning about asset types*"
+                footer = "\n⚠️ **IMPORTANT:** This is educational AI content, NOT real prices or investment advice.\n📚 *Use professional data sources for investment decisions.*"
             
             # Create price chips
             price_lines = []
