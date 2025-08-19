@@ -1797,7 +1797,7 @@ REQUIREMENTS:
         if user.id not in subscribed_users:
             await update.message.reply_text(self.get_text(user.id, 'not_subscribed'))
         else:
-        self.db.unsubscribe_user(user.id)
+            self.db.unsubscribe_user(user.id)
             await update.message.reply_text(self.get_text(user.id, 'unsubscribed'))
     
     async def status_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -2360,7 +2360,7 @@ Platts: $89.15/bbl
 
 📈 **Тренд:** Восходящий (+2.1% за неделю)
 ⚠️ **Риски:** Волатильность USD/UAH"""
-            else:
+        else:
             message = """⛽ **FUEL BOX-SCORE**
 *Daily fuel pricing chain*
 
