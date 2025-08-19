@@ -3187,61 +3187,47 @@ JUN25: $879.80 ↗️ +0.69%
     
     def schedule_daily_summaries(self):
         """Schedule daily AI-powered summaries - European Timezone (CET/CEST)"""
+        
+        def run_async_notification():
+            """Helper to run async notification in thread"""
+            try:
+                # Create new event loop for this thread
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                loop.run_until_complete(self.send_daily_notifications())
+                loop.close()
+            except Exception as e:
+                logger.error(f"Error in scheduled notification: {e}")
+        
         # Daily morning summary at 8:00 AM CET = 7:00 AM UTC
-        schedule.every().day.at("07:00").do(
-            lambda: asyncio.create_task(self.send_daily_notifications())
-        )
+        schedule.every().day.at("07:00").do(run_async_notification)
         
         # European market opening summary at 9:00 AM CET = 8:00 AM UTC - weekdays only
-        schedule.every().monday.at("08:00").do(
-            lambda: asyncio.create_task(self.send_daily_notifications())
-        )
-        schedule.every().tuesday.at("08:00").do(
-            lambda: asyncio.create_task(self.send_daily_notifications())
-        )
-        schedule.every().wednesday.at("08:00").do(
-            lambda: asyncio.create_task(self.send_daily_notifications())
-        )
-        schedule.every().thursday.at("08:00").do(
-            lambda: asyncio.create_task(self.send_daily_notifications())
-        )
-        schedule.every().friday.at("08:00").do(
-            lambda: asyncio.create_task(self.send_daily_notifications())
-        )
+        schedule.every().monday.at("08:00").do(run_async_notification)
+        schedule.every().tuesday.at("08:00").do(run_async_notification)
+        schedule.every().wednesday.at("08:00").do(run_async_notification)
+        schedule.every().thursday.at("08:00").do(run_async_notification)
+        schedule.every().friday.at("08:00").do(run_async_notification)
         
         # European market closing summary at 5:30 PM CET = 4:30 PM UTC - weekdays only
-        schedule.every().monday.at("16:30").do(
-            lambda: asyncio.create_task(self.send_daily_notifications())
-        )
-        schedule.every().tuesday.at("16:30").do(
-            lambda: asyncio.create_task(self.send_daily_notifications())
-        )
-        schedule.every().wednesday.at("16:30").do(
-            lambda: asyncio.create_task(self.send_daily_notifications())
-        )
-        schedule.every().thursday.at("16:30").do(
-            lambda: asyncio.create_task(self.send_daily_notifications())
-        )
-        schedule.every().friday.at("16:30").do(
-            lambda: asyncio.create_task(self.send_daily_notifications())
-        )
+        schedule.every().monday.at("16:30").do(run_async_notification)
+        schedule.every().tuesday.at("16:30").do(run_async_notification)
+        schedule.every().wednesday.at("16:30").do(run_async_notification)
+        schedule.every().thursday.at("16:30").do(run_async_notification)
+        schedule.every().friday.at("16:30").do(run_async_notification)
         
         # US market closing summary at 10:00 PM CET = 9:00 PM UTC - weekdays only
-        schedule.every().monday.at("21:00").do(
-            lambda: asyncio.create_task(self.send_daily_notifications())
-        )
-        schedule.every().tuesday.at("21:00").do(
-            lambda: asyncio.create_task(self.send_daily_notifications())
-        )
-        schedule.every().wednesday.at("21:00").do(
-            lambda: asyncio.create_task(self.send_daily_notifications())
-        )
-        schedule.every().thursday.at("21:00").do(
-            lambda: asyncio.create_task(self.send_daily_notifications())
-        )
-        schedule.every().friday.at("21:00").do(
-            lambda: asyncio.create_task(self.send_daily_notifications())
-        )
+        schedule.every().monday.at("21:00").do(run_async_notification)
+        schedule.every().tuesday.at("21:00").do(run_async_notification)
+        schedule.every().wednesday.at("21:00").do(run_async_notification)
+        schedule.every().thursday.at("21:00").do(run_async_notification)
+        schedule.every().friday.at("21:00").do(run_async_notification)
+        
+        logger.info("📅 Scheduled notifications:")
+        logger.info("   • 07:00 UTC (8:00 CET) - Daily morning summary")
+        logger.info("   • 08:00 UTC (9:00 CET) - European market opening (weekdays)")
+        logger.info("   • 16:30 UTC (17:30 CET) - European market closing (weekdays)")
+        logger.info("   • 21:00 UTC (22:00 CET) - US market closing (weekdays)")
     
     async def run_scheduler(self):
         """Run the scheduled tasks"""
@@ -3250,7 +3236,7 @@ JUN25: $879.80 ↗️ +0.69%
             await asyncio.sleep(1)
     
     async def start(self):
-        """Start the bot"""
+        """Start the bot with scheduler"""
         logger.info("Starting AI-Powered Stock News Bot...")
         
         # Set up scheduling
@@ -3258,10 +3244,13 @@ JUN25: $879.80 ↗️ +0.69%
         
         logger.info("Bot started successfully! AI-powered market research is operational.")
         logger.info(f"Current subscriber count: {len(self.db.get_subscribed_users())}")
-        logger.info("Scheduler started")
+        logger.info("✅ Background scheduler thread started")
         
-        # Start polling (this handles initialization internally)
-        await self.application.run_polling(drop_pending_updates=True)
+        # Start both polling and scheduler concurrently
+        await asyncio.gather(
+            self.application.run_polling(drop_pending_updates=True, close_loop=False),
+            self.run_scheduler()
+        )
 
 # Signal handler for graceful shutdown
 def signal_handler(signum, frame):
@@ -3337,11 +3326,8 @@ def main():
         
         # Start the bot
         try:
-            logger.info("🚀 Starting Telegram bot polling...")
-            bot.application.run_polling(
-                drop_pending_updates=True,
-                close_loop=False  # Prevent event loop conflicts
-            )
+            logger.info("🚀 Starting bot with automatic notifications...")
+            bot.application.run_polling(drop_pending_updates=True, close_loop=False)
         except KeyboardInterrupt:
             logger.info("Bot stopped by user (Ctrl+C)")
         except Exception as e:
