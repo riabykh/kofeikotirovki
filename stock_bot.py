@@ -1109,26 +1109,10 @@ class StockNewsBot:
         return InlineKeyboardMarkup(keyboard)
 
     async def setup_bot_menu(self):
-        """Set up the bot's command menu"""
-        commands = [
-            BotCommand("start", "🚀 Start using the bot"),
-            BotCommand("news", "📰 Get latest market news"),
-            BotCommand("topics", "🎯 Choose your topics"),
-            BotCommand("language", "🌐 Change language"),
-            BotCommand("subscribe", "🔔 Subscribe to notifications"),
-            BotCommand("unsubscribe", "🔕 Unsubscribe from notifications"),
-            BotCommand("status", "📊 Check subscription status"),
-            BotCommand("help", "❓ Get help and information"),
-            BotCommand("notify", "📢 Send manual notification (admin only)"),
-            BotCommand("makeadmin", "👑 Make yourself admin"),
-            BotCommand("addadmin", "👑 Add admin user (admin only)"),
-            BotCommand("testnotifications", "🔔 Test auto notifications (admin only)"),
-            BotCommand("schedulestatus", "⏰ Check scheduler status (admin only)"),
-            BotCommand("stats", "📈 Bot statistics (admin only)")
-        ]
-        
-        await self.application.bot.set_my_commands(commands)
-        logger.info("✅ Bot menu commands set successfully")
+        """Remove the bot's command menu since we use persistent keyboards"""
+        # Set empty command list to remove the menu button
+        await self.application.bot.set_my_commands([])
+        logger.info("✅ Bot menu commands removed - using persistent keyboards instead")
     
     def is_admin(self, user_id: int) -> bool:
         """Check if user is admin (first user becomes admin automatically)"""
