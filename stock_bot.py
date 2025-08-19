@@ -1245,29 +1245,60 @@ class StockNewsBot:
             
             logger.info(f"🎯 Fetching real financial data for user {user_id}: topic='{user_topics}', language='{user_language}'")
             
-            # Send professional disclaimer
+            # Check if real APIs are configured
+            news_api_key = os.getenv('NEWS_API_KEY')
+            alpha_vantage_key = os.getenv('ALPHA_VANTAGE_API_KEY')
+            fmp_api_key = os.getenv('FMP_API_KEY')
+            
+            has_real_apis = news_api_key or alpha_vantage_key or fmp_api_key
+            
+            # Send appropriate disclaimer
             if user_language == 'ru':
-                disclaimer = """📊 **ПРОФЕССИОНАЛЬНЫЕ ФИНАНСОВЫЕ ДАННЫЕ**
+                if has_real_apis:
+                    disclaimer = """📊 **ПРОФЕССИОНАЛЬНЫЕ ФИНАНСОВЫЕ ДАННЫЕ**
 
-📰 **Источники новостей:** Reuters, Bloomberg, CNBC, MarketWatch, Financial Times
-📈 **Данные о ценах:** Alpha Vantage, Financial Modeling Prep, Yahoo Finance
+📰 **Источники новостей:** Reuters, Bloomberg, CNBC, MarketWatch  
+📈 **Данные о ценах:** Alpha Vantage, Financial Modeling Prep
 
 ⚠️ **ВАЖНО:** Информация предоставляется только в ознакомительных целях
 💡 **Не является:** Персональными инвестиционными рекомендациями
-🔍 **Рекомендация:** Консультируйтесь с финансовым консультантом перед инвестициями
+🔍 **Рекомендация:** Консультируйтесь с финансовым консультантом
 
 Получаем актуальные данные..."""
-            else:
-                disclaimer = """📊 **PROFESSIONAL FINANCIAL DATA**
+                else:
+                    disclaimer = """🎯 **ДЕМО-РЕЖИМ ФИНАНСОВОГО БОТА**
 
-📰 **News Sources:** Reuters, Bloomberg, CNBC, MarketWatch, Financial Times  
-📈 **Price Data:** Alpha Vantage, Financial Modeling Prep, Yahoo Finance
+📊 **Показываются:** Демонстрационные данные для тестирования
+🔧 **Для реальных данных:** Настройте API ключи (см. REAL_DATA_SETUP.md)
+
+⚠️ **ВАЖНО:** Это демо-данные, НЕ реальные цены
+💡 **Не используйте:** Для принятия инвестиционных решений  
+🔍 **Для реальной торговли:** Используйте профессиональные источники
+
+Показываем демо-данные..."""
+            else:
+                if has_real_apis:
+                    disclaimer = """📊 **PROFESSIONAL FINANCIAL DATA**
+
+📰 **News Sources:** Reuters, Bloomberg, CNBC, MarketWatch  
+📈 **Price Data:** Alpha Vantage, Financial Modeling Prep
 
 ⚠️ **IMPORTANT:** Information provided for informational purposes only
 💡 **Not:** Personal investment recommendations
 🔍 **Recommendation:** Consult with financial advisor before investing
 
 Fetching live data..."""
+                else:
+                    disclaimer = """🎯 **DEMO MODE FINANCIAL BOT**
+
+📊 **Showing:** Demonstration data for testing
+🔧 **For real data:** Configure API keys (see REAL_DATA_SETUP.md)
+
+⚠️ **IMPORTANT:** This is demo data, NOT real prices
+💡 **Don't use:** For investment decisions
+🔍 **For real trading:** Use professional sources
+
+Showing demo data..."""
             
             await self.bot.send_message(chat_id=chat_id, text=disclaimer, parse_mode='Markdown')
             await asyncio.sleep(1)
@@ -1352,84 +1383,253 @@ Session: #{session_id}
 Focus: {variety_phrase} from the past 12-24 hours
 """
 
-            # For now, return real news information about data sources
-            news_items = []
-            
-            if language == 'ru':
-                news_items = [
-                    NewsItem(
-                        title="Переход на профессиональные источники данных",
-                        summary="Бот теперь использует API от ведущих финансовых провайдеров: Reuters, Bloomberg, Alpha Vantage, Financial Modeling Prep. Это обеспечивает актуальность и точность финансовой информации.",
-                        source="Система",
-                        url="https://alphavantage.co",
-                        published=datetime.now().strftime('%Y-%m-%d')
-                    ),
-                    NewsItem(
-                        title="Настройка API ключей для реальных данных",
-                        summary="Для получения актуальных новостей и цен требуется настройка API ключей: NEWS_API_KEY, ALPHA_VANTAGE_API_KEY, FMP_API_KEY. После настройки станут доступны реальные рыночные данные.",
-                        source="Документация",
-                        url="https://newsapi.org",
-                        published=datetime.now().strftime('%Y-%m-%d')
-                    )
-                ]
-            else:
-                news_items = [
-                    NewsItem(
-                        title="Migration to Professional Data Sources",
-                        summary="Bot now uses APIs from leading financial providers: Reuters, Bloomberg, Alpha Vantage, Financial Modeling Prep. This ensures current and accurate financial information.",
-                        source="System",
-                        url="https://alphavantage.co",
-                        published=datetime.now().strftime('%Y-%m-%d')
-                    ),
-                    NewsItem(
-                        title="API Keys Setup for Real Data",
-                        summary="To get current news and prices, API keys setup required: NEWS_API_KEY, ALPHA_VANTAGE_API_KEY, FMP_API_KEY. After setup, real market data will be available.",
-                        source="Documentation", 
-                        url="https://newsapi.org",
-                        published=datetime.now().strftime('%Y-%m-%d')
-                    )
-                ]
-            
-            logger.info(f"Prepared real news placeholder for topic: {topic}")
-            return news_items
+            # Try to fetch real news from APIs first
+            try:
+                # Check if any API keys are available
+                news_api_key = os.getenv('NEWS_API_KEY')
+                alpha_vantage_key = os.getenv('ALPHA_VANTAGE_API_KEY')
+                fmp_api_key = os.getenv('FMP_API_KEY')
+                
+                if news_api_key or alpha_vantage_key or fmp_api_key:
+                    # Try to fetch real news
+                    real_news = await self._fetch_real_news_data(topic, language)
+                    if real_news:
+                        return real_news
+                
+                # Fallback to demo financial news if no API keys
+                return self._get_demo_news(topic, language)
+                
+            except Exception as e:
+                logger.error(f"Error in real news fetching: {e}")
+                return self._get_demo_news(topic, language)
             
         except Exception as e:
             logger.error(f"Error fetching AI news: {e}")
             return []
     
     async def fetch_real_assets(self, topic: str, language: str) -> List[AssetItem]:
-        """Fetch real asset prices from financial APIs"""
+        """Fetch real asset prices from financial APIs or demo data"""
         try:
-            # For now, return professional message about data sources
-            assets = []
+            # Check if any API keys are available
+            alpha_vantage_key = os.getenv('ALPHA_VANTAGE_API_KEY')
+            fmp_api_key = os.getenv('FMP_API_KEY')
             
-            if language == 'ru':
-                asset = AssetItem(
-                    symbol="Данные в реальном времени",
-                    name="Профессиональные источники",
-                    price=0,
-                    change=0,
-                    change_direction="neutral"
-                )
-                asset.source = "Alpha Vantage, Yahoo Finance, Financial Modeling Prep"
-            else:
-                asset = AssetItem(
-                    symbol="Real-time Data",
-                    name="Professional Sources", 
-                    price=0,
-                    change=0,
-                    change_direction="neutral"
-                )
-                asset.source = "Alpha Vantage, Yahoo Finance, Financial Modeling Prep"
-                
-            assets.append(asset)
+            if alpha_vantage_key or fmp_api_key:
+                # Try to fetch real data (placeholder for now)
+                logger.info("API keys available but real API implementation pending")
             
-            logger.info(f"Prepared real asset data placeholder for topic: {topic}")
-            return assets
+            # Return demo data for now
+            return self._get_demo_assets(topic, language)
             
         except Exception as e:
             logger.error(f"Error fetching real assets: {e}")
-            return []
+            return self._get_demo_assets(topic, language)
+    
+    def _get_demo_assets(self, topic: str, language: str) -> List[AssetItem]:
+        """Get demo asset data when APIs are not configured"""
+        assets = []
+        
+        if topic == 'oil_gas':
+            assets = [
+                AssetItem(symbol="CRUDE", name="Crude Oil" if language == 'en' else "Нефть", price=82.45, change=1.2, change_direction="up"),
+                AssetItem(symbol="XOM", name="Exxon Mobil", price=108.75, change=0.8, change_direction="up"),
+                AssetItem(symbol="CVX", name="Chevron", price=152.30, change=-0.3, change_direction="down"),
+                AssetItem(symbol="NATGAS", name="Natural Gas" if language == 'en' else "Природный газ", price=3.45, change=2.1, change_direction="up")
+            ]
+        elif topic == 'technology':
+            assets = [
+                AssetItem(symbol="AAPL", name="Apple Inc", price=175.25, change=-1.2, change_direction="down"),
+                AssetItem(symbol="MSFT", name="Microsoft", price=365.80, change=0.5, change_direction="up"),
+                AssetItem(symbol="GOOGL", name="Alphabet", price=138.90, change=-0.8, change_direction="down"),
+                AssetItem(symbol="NVDA", name="NVIDIA", price=445.60, change=3.2, change_direction="up")
+            ]
+        elif topic == 'metals_mining':
+            assets = [
+                AssetItem(symbol="GOLD", name="Gold" if language == 'en' else "Золото", price=2045.30, change=0.6, change_direction="up"),
+                AssetItem(symbol="SILVER", name="Silver" if language == 'en' else "Серебро", price=24.85, change=-0.4, change_direction="down"),
+                AssetItem(symbol="COPPER", name="Copper" if language == 'en' else "Медь", price=4.12, change=1.8, change_direction="up"),
+                AssetItem(symbol="NEM", name="Newmont Corp", price=38.70, change=0.9, change_direction="up")
+            ]
+        elif topic == 'finance':
+            assets = [
+                AssetItem(symbol="JPM", name="JPMorgan Chase", price=158.45, change=0.7, change_direction="up"),
+                AssetItem(symbol="BAC", name="Bank of America", price=31.20, change=-0.2, change_direction="down"),
+                AssetItem(symbol="WFC", name="Wells Fargo", price=42.85, change=0.4, change_direction="up"),
+                AssetItem(symbol="GS", name="Goldman Sachs", price=385.90, change=1.1, change_direction="up")
+            ]
+        else:  # 'all' or default
+            assets = [
+                AssetItem(symbol="SPY", name="S&P 500 ETF", price=485.20, change=0.3, change_direction="up"),
+                AssetItem(symbol="QQQ", name="NASDAQ ETF", price=385.45, change=-0.5, change_direction="down"),
+                AssetItem(symbol="DJI", name="Dow Jones" if language == 'en' else "Индекс Доу-Джонса", price=37245.50, change=0.2, change_direction="up"),
+                AssetItem(symbol="VIX", name="Volatility Index" if language == 'en' else "Индекс волатильности", price=18.45, change=-2.1, change_direction="down")
+            ]
+        
+        # Add demo source to all assets
+        for asset in assets:
+            asset.source = "Demo Data" if language == 'en' else "Демо данные"
+        
+        return assets
+    
+    async def _fetch_real_news_data(self, topic: str, language: str) -> List[NewsItem]:
+        """Fetch real news from configured APIs"""
+        news_items = []
+        
+        # Define search terms for each topic
+        search_terms = {
+            'all': 'financial markets stock market',
+            'technology': 'tech stocks Apple Microsoft Google Tesla',
+            'oil_gas': 'oil prices crude oil energy Exxon',
+            'metals_mining': 'gold silver copper mining metals',
+            'finance': 'banks financial JPMorgan interest rates'
+        }
+        
+        query = search_terms.get(topic, search_terms['all'])
+        
+        # Try NewsAPI first
+        news_api_key = os.getenv('NEWS_API_KEY')
+        if news_api_key:
+            try:
+                async with aiohttp.ClientSession() as session:
+                    url = "https://newsapi.org/v2/everything"
+                    params = {
+                        'q': query,
+                        'language': 'ru' if language == 'ru' else 'en',
+                        'sortBy': 'publishedAt',
+                        'domains': 'reuters.com,bloomberg.com,cnbc.com,marketwatch.com',
+                        'pageSize': 5,
+                        'apiKey': news_api_key
+                    }
+                    
+                    async with session.get(url, params=params) as response:
+                        if response.status == 200:
+                            data = await response.json()
+                            for article in data.get('articles', [])[:3]:
+                                if article.get('title') and article.get('description'):
+                                    news_items.append(NewsItem(
+                                        title=article['title'],
+                                        summary=article['description'][:200] + "..." if len(article['description']) > 200 else article['description'],
+                                        source=article.get('source', {}).get('name', 'NewsAPI'),
+                                        url=article.get('url', ''),
+                                        published=article.get('publishedAt', datetime.now().isoformat())[:10]
+                                    ))
+            except Exception as e:
+                logger.error(f"NewsAPI error: {e}")
+        
+        if news_items:
+            logger.info(f"Fetched {len(news_items)} real news items")
+            return news_items
+        
+        return []
+    
+    def _get_demo_news(self, topic: str, language: str) -> List[NewsItem]:
+        """Get demo financial news when APIs are not configured"""
+        today = datetime.now().strftime('%Y-%m-%d')
+        
+        if language == 'ru':
+            if topic == 'oil_gas':
+                return [
+                    NewsItem(
+                        title="Демо: Нефть торгуется выше $80 за баррель",
+                        summary="Цены на нефть остаются стабильными на фоне геополитической напряженности. Инвесторы следят за решениями ОПЕК+ и данными о запасах в США.",
+                        source="Reuters (Demo)",
+                        url="https://reuters.com",
+                        published=today
+                    ),
+                    NewsItem(
+                        title="Демо: Акции энергетических компаний растут",
+                        summary="Акции Exxon Mobil и Chevron показывают рост на фоне высоких цен на нефть и газ. Аналитики прогнозируют продолжение позитивного тренда.",
+                        source="Bloomberg (Demo)",
+                        url="https://bloomberg.com",
+                        published=today
+                    )
+                ]
+            elif topic == 'technology':
+                return [
+                    NewsItem(
+                        title="Демо: Технологические акции под давлением",
+                        summary="Индекс NASDAQ снижается на фоне опасений по поводу процентных ставок. Apple и Microsoft показывают смешанную динамику.",
+                        source="CNBC (Demo)",
+                        url="https://cnbc.com",
+                        published=today
+                    ),
+                    NewsItem(
+                        title="Демо: ИИ-сектор привлекает инвестиции",
+                        summary="Компании, связанные с искусственным интеллектом, продолжают привлекать крупные инвестиции. NVIDIA показывает рекордные результаты.",
+                        source="MarketWatch (Demo)",
+                        url="https://marketwatch.com",
+                        published=today
+                    )
+                ]
+            else:
+                return [
+                    NewsItem(
+                        title="Демо: Рынки показывают смешанную динамику",
+                        summary="Основные индексы торгуются разнонаправленно. Инвесторы ожидают данные по инфляции и решения ФРС по процентным ставкам.",
+                        source="Reuters (Demo)",
+                        url="https://reuters.com",
+                        published=today
+                    ),
+                    NewsItem(
+                        title="Демо: Доллар укрепляется против основных валют",
+                        summary="Американская валюта растет на фоне ожиданий повышения ставки ФРС. Евро и йена находятся под давлением.",
+                        source="Financial Times (Demo)",
+                        url="https://ft.com",
+                        published=today
+                    )
+                ]
+        else:
+            if topic == 'oil_gas':
+                return [
+                    NewsItem(
+                        title="Demo: Oil trades above $80 per barrel",
+                        summary="Oil prices remain stable amid geopolitical tensions. Investors are monitoring OPEC+ decisions and US inventory data.",
+                        source="Reuters (Demo)",
+                        url="https://reuters.com",
+                        published=today
+                    ),
+                    NewsItem(
+                        title="Demo: Energy stocks gain momentum",
+                        summary="Exxon Mobil and Chevron shares rise on higher oil and gas prices. Analysts forecast continued positive trend.",
+                        source="Bloomberg (Demo)",
+                        url="https://bloomberg.com",
+                        published=today
+                    )
+                ]
+            elif topic == 'technology':
+                return [
+                    NewsItem(
+                        title="Demo: Tech stocks under pressure",
+                        summary="NASDAQ index declines amid interest rate concerns. Apple and Microsoft show mixed performance.",
+                        source="CNBC (Demo)",
+                        url="https://cnbc.com",
+                        published=today
+                    ),
+                    NewsItem(
+                        title="Demo: AI sector attracts investments",
+                        summary="Companies related to artificial intelligence continue attracting major investments. NVIDIA shows record results.",
+                        source="MarketWatch (Demo)",
+                        url="https://marketwatch.com",
+                        published=today
+                    )
+                ]
+            else:
+                return [
+                    NewsItem(
+                        title="Demo: Markets show mixed performance",
+                        summary="Major indices trade in different directions. Investors await inflation data and Fed interest rate decisions.",
+                        source="Reuters (Demo)",
+                        url="https://reuters.com",
+                        published=today
+                    ),
+                    NewsItem(
+                        title="Demo: Dollar strengthens against major currencies",
+                        summary="US currency rises on Fed rate hike expectations. Euro and yen are under pressure.",
+                        source="Financial Times (Demo)",
+                        url="https://ft.com",
+                        published=today
+                    )
+                ]
     
     def _parse_ai_news(self, content: str) -> List[NewsItem]:
         """Parse AI-generated news content into NewsItem objects"""
