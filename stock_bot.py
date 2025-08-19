@@ -670,19 +670,26 @@ class StockNewsBot:
 
     def create_persistent_keyboard(self, user_id: int):
         """Create persistent reply keyboard based on user's sector and time"""
-        user_topics = self.db.get_user_topics(user_id)
-        user_language = self.db.get_user_language(user_id)
-        
-        import datetime
-        hour = datetime.datetime.now().hour
-        
-        # Check if user is focused on mining/oil sectors
-        is_mining_oil_user = user_topics in ['oil_gas', 'metals_mining']
-        
-        if is_mining_oil_user:
-            return self.create_commodity_persistent_keyboard(user_id, user_topics, user_language, hour)
-        else:
-            return self.create_general_persistent_keyboard(user_id, user_language, hour)
+        try:
+            user_topics = self.db.get_user_topics(user_id)
+            user_language = self.db.get_user_language(user_id)
+            
+            import datetime
+            hour = datetime.datetime.now().hour
+            
+            # Check if user is focused on mining/oil sectors
+            is_mining_oil_user = user_topics in ['oil_gas', 'metals_mining']
+            
+            if is_mining_oil_user:
+                logger.info(f"Creating commodity keyboard for user {user_id}, topic: {user_topics}")
+                return self.create_commodity_persistent_keyboard(user_id, user_topics, user_language, hour)
+            else:
+                logger.info(f"Creating general keyboard for user {user_id}")
+                return self.create_general_persistent_keyboard(user_id, user_language, hour)
+        except Exception as e:
+            logger.error(f"Error creating persistent keyboard for user {user_id}: {e}")
+            # Fallback to simple keyboard
+            return ReplyKeyboardMarkup([["📰 Новости", "📊 Помощь"]], resize_keyboard=True, one_time_keyboard=False)
     
     def create_commodity_persistent_keyboard(self, user_id: int, user_topics: str, user_language: str, hour: int):
         """Create persistent keyboard for commodity users"""
@@ -719,7 +726,12 @@ class StockNewsBot:
                     ["🎯 Topics", "⚙️ Settings", "❓ Help"]
                 ]
         
-        return ReplyKeyboardMarkup(keyboard, resize_keyboard=True, persistent=True)
+        return ReplyKeyboardMarkup(
+            keyboard, 
+            resize_keyboard=True, 
+            one_time_keyboard=False,
+            input_field_placeholder="Выберите функцию..." if user_language == 'ru' else "Choose function..."
+        )
     
     def create_general_persistent_keyboard(self, user_id: int, user_language: str, hour: int):
         """Create persistent keyboard for general users"""
@@ -738,7 +750,12 @@ class StockNewsBot:
                 ["⚙️ Settings", "❓ Help"]
             ]
         
-        return ReplyKeyboardMarkup(keyboard, resize_keyboard=True, persistent=True)
+        return ReplyKeyboardMarkup(
+            keyboard, 
+            resize_keyboard=True, 
+            one_time_keyboard=False,
+            input_field_placeholder="Выберите действие..." if user_language == 'ru' else "Choose action..."
+        )
     
     async def handle_text_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle text messages from reply keyboard buttons"""
@@ -1780,7 +1797,7 @@ REQUIREMENTS:
         if user.id not in subscribed_users:
             await update.message.reply_text(self.get_text(user.id, 'not_subscribed'))
         else:
-            self.db.unsubscribe_user(user.id)
+        self.db.unsubscribe_user(user.id)
             await update.message.reply_text(self.get_text(user.id, 'unsubscribed'))
     
     async def status_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -2343,7 +2360,7 @@ Platts: $89.15/bbl
 
 📈 **Тренд:** Восходящий (+2.1% за неделю)
 ⚠️ **Риски:** Волатильность USD/UAH"""
-        else:
+            else:
             message = """⛽ **FUEL BOX-SCORE**
 *Daily fuel pricing chain*
 
