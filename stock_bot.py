@@ -61,7 +61,7 @@ class DatabaseManager:
                 last_name TEXT,
                 subscribed BOOLEAN DEFAULT TRUE,
                 language TEXT DEFAULT 'ru',
-                topic_preferences TEXT DEFAULT 'all',
+                topic_preferences TEXT DEFAULT 'oil_gas',
                 joined_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 last_active TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
@@ -232,27 +232,11 @@ class StockNewsBot:
         self.application = Application.builder().token(bot_token).build()
         self.db = DatabaseManager()
         
-        # Topic definitions
+        # Topic definitions - Oil & Gas only
         self.available_topics = {
-            'all': {
-                'en': 'All Topics',
-                'ru': 'Все темы'
-            },
             'oil_gas': {
-                'en': 'Oil & Gas',
-                'ru': 'Нефть и газ'
-            },
-            'metals_mining': {
-                'en': 'Metals & Mining',
-                'ru': 'Металлы и добыча'
-            },
-            'technology': {
-                'en': 'Technology',
-                'ru': 'Технологии'
-            },
-            'finance': {
-                'en': 'Finance & Banking',
-                'ru': 'Финансы и банкинг'
+                'en': '🛢️ Oil & Gas',
+                'ru': '🛢️ Нефть и газ'
             }
         }
         
@@ -3456,7 +3440,7 @@ JUN25: $879.80 ↗️ +0.69%
             logger.error(f"Error sending daily notifications: {e}")
     
     def schedule_daily_summaries(self):
-        """Schedule daily AI-powered summaries - European Timezone (CET/CEST)"""
+        """Schedule hourly oil & gas updates for testing"""
         
         def run_async_notification():
             """Helper to run async notification in thread"""
@@ -3469,35 +3453,13 @@ JUN25: $879.80 ↗️ +0.69%
             except Exception as e:
                 logger.error(f"Error in scheduled notification: {e}")
         
-        # Daily morning summary at 8:00 AM CET = 7:00 AM UTC
-        schedule.every().day.at("07:00").do(run_async_notification)
+        # 🛢️ TESTING MODE: Send oil & gas updates every hour
+        schedule.every().hour.do(run_async_notification)
         
-        # European market opening summary at 9:00 AM CET = 8:00 AM UTC - weekdays only
-        schedule.every().monday.at("08:00").do(run_async_notification)
-        schedule.every().tuesday.at("08:00").do(run_async_notification)
-        schedule.every().wednesday.at("08:00").do(run_async_notification)
-        schedule.every().thursday.at("08:00").do(run_async_notification)
-        schedule.every().friday.at("08:00").do(run_async_notification)
-        
-        # European market closing summary at 5:30 PM CET = 4:30 PM UTC - weekdays only
-        schedule.every().monday.at("16:30").do(run_async_notification)
-        schedule.every().tuesday.at("16:30").do(run_async_notification)
-        schedule.every().wednesday.at("16:30").do(run_async_notification)
-        schedule.every().thursday.at("16:30").do(run_async_notification)
-        schedule.every().friday.at("16:30").do(run_async_notification)
-        
-        # US market closing summary at 10:00 PM CET = 9:00 PM UTC - weekdays only
-        schedule.every().monday.at("21:00").do(run_async_notification)
-        schedule.every().tuesday.at("21:00").do(run_async_notification)
-        schedule.every().wednesday.at("21:00").do(run_async_notification)
-        schedule.every().thursday.at("21:00").do(run_async_notification)
-        schedule.every().friday.at("21:00").do(run_async_notification)
-        
-        logger.info("📅 Scheduled notifications:")
-        logger.info("   • 07:00 UTC (8:00 CET) - Daily morning summary")
-        logger.info("   • 08:00 UTC (9:00 CET) - European market opening (weekdays)")
-        logger.info("   • 16:30 UTC (17:30 CET) - European market closing (weekdays)")
-        logger.info("   • 21:00 UTC (22:00 CET) - US market closing (weekdays)")
+        logger.info("🛢️ Oil & Gas Bot - TESTING MODE")
+        logger.info("   • Hourly notifications enabled for testing")
+        logger.info("   • Oil & gas market updates every 60 minutes")
+        logger.info("   • AI-powered mocked data from ChatGPT")
     
     async def run_scheduler(self):
         """Run the scheduled tasks"""
