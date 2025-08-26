@@ -3455,16 +3455,24 @@ JUN25: $879.80 ↗️ +0.69%
             """Helper to run async notification in thread"""
             try:
                 # Create new event loop for this thread
+                import asyncio
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
-                loop.run_until_complete(self.send_daily_notifications())
-                loop.close()
+                
+                # Run the notification
+                try:
+                    loop.run_until_complete(self.send_daily_notifications())
+                    logger.info("✅ Scheduled notification sent successfully")
+                finally:
+                    loop.close()
                 
                 # Clear startup test after first run
                 schedule.clear('startup_test')
                 logger.info("✅ Startup test notification completed, cleared from schedule")
             except Exception as e:
                 logger.error(f"Error in scheduled notification: {e}")
+                import traceback
+                logger.error(f"Traceback: {traceback.format_exc()}")
         
         # 🛢️ TESTING MODE: Send oil & gas updates every hour
         schedule.every().hour.do(run_async_notification)
@@ -3484,7 +3492,7 @@ JUN25: $879.80 ↗️ +0.69%
             schedule.run_pending()
             await asyncio.sleep(1)
     
-    async def start(self):
+    def start(self):
         """Start the bot with scheduler"""
         logger.info("Starting AI-Powered Stock News Bot...")
         
@@ -3493,13 +3501,20 @@ JUN25: $879.80 ↗️ +0.69%
         
         logger.info("Bot started successfully! AI-powered market research is operational.")
         logger.info(f"Current subscriber count: {len(self.db.get_subscribed_users())}")
+        
+        # Start scheduler in background thread
+        import threading
+        def run_scheduler():
+            while True:
+                schedule.run_pending()
+                time.sleep(1)
+        
+        scheduler_thread = threading.Thread(target=run_scheduler, daemon=True)
+        scheduler_thread.start()
         logger.info("✅ Background scheduler thread started")
         
-        # Start both polling and scheduler concurrently
-        await asyncio.gather(
-            self.application.run_polling(drop_pending_updates=True, close_loop=False),
-            self.run_scheduler()
-        )
+        # Start the bot polling
+        self.application.run_polling(drop_pending_updates=True)
 
     # 🛢️ AI-ONLY OIL & GAS CONTENT GENERATION METHODS
     
@@ -3846,7 +3861,7 @@ def signal_handler(signum, frame):
     sys.exit(0)
 
 # Main execution
-async def main():
+def main():
     # Load environment variables from .env file
     try:
         from dotenv import load_dotenv
@@ -3893,10 +3908,10 @@ async def main():
         # Wait a moment for Telegram to process
         time.sleep(2)
         
-        # Start the bot with async scheduler
+        # Start the bot with scheduler
         try:
             logger.info("🚀 Starting bot with hourly notifications...")
-            await bot.start()
+            bot.start()
         except KeyboardInterrupt:
             logger.info("Bot stopped by user (Ctrl+C)")
         except Exception as e:
@@ -3929,4 +3944,4 @@ async def main():
 # API implementation will be added here once API keys are configured
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
