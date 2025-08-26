@@ -247,13 +247,13 @@ class StockNewsBot:
         # Translation dictionaries
         self.translations = {
             'en': {
-                'welcome_title': 'Кофе и Котировки',
-                'welcome_message': 'Welcome, {name}! I am your personal financial markets news assistant.',
+                'welcome_title': '🛢️ Oil & Gas AI Bot',
+                'welcome_message': 'Welcome, {name}! I am your AI-powered oil & gas market assistant.',
                 'what_i_do': 'What I offer:',
-                'daily_news': 'Daily market news summaries powered by AI research',
-                'sentiment_analysis': 'AI-powered market sentiment analysis',
-                'predictions': 'Trending topics and market predictions',
-                'auto_updates': 'Automatic daily updates (9:00 AM & 9:30 AM EST)',
+                'daily_news': 'Hourly oil & gas market updates powered by AI',
+                'sentiment_analysis': 'AI-powered oil & gas market analysis',
+                'predictions': 'Oil futures analysis and market predictions',
+                'auto_updates': 'Automatic hourly updates for testing',
                 'commands': 'Commands:',
                 'news_cmd': '/news - Get latest market news',
                 'notify_cmd': '/notify - Manually trigger notifications for all subscribers (Admin only)',
@@ -286,16 +286,36 @@ class StockNewsBot:
                 'failed_to_send': 'Failed to send',
                 'total_subscribers': 'Total subscribers',
                 'sent_at': 'Sent at',
-                'all_notified': 'All subscribers have been notified!'
+                'all_notified': 'All subscribers have been notified!',
+                'help_message': '''🤖 **AI-Only Oil & Gas Bot**
+
+🛢️ **Specialization:** Professional oil & gas market data
+📊 **Source:** AI-generated content for demonstration
+⏰ **Updates:** Hourly notifications during testing
+
+**📱 Available Commands:**
+• `/news` - Get latest oil & gas market digest
+• `/subscribe` - Enable hourly notifications
+• `/unsubscribe` - Disable notifications  
+• `/status` - Check bot status
+• `/help` - Show this help
+
+**🎯 What You Get:**
+📰 Oil & Gas News
+💰 Live Price Simulation
+📈 Futures Analysis (NEW!)
+🔮 Market Predictions
+
+⚠️ **Disclaimer:** AI-generated data for demonstration only'''
             },
             'ru': {
-                'welcome_title': 'Кофе и Котировки',
-                'welcome_message': 'Добро пожаловать, {name}! Я ваш персональный помощник по новостям финансовых рынков.',
+                'welcome_title': '🛢️ Нефтегазовый AI-Бот',
+                'welcome_message': 'Добро пожаловать, {name}! Я ваш помощник по нефтегазовым рынкам на базе ИИ.',
                 'what_i_do': 'Что я предлагаю:',
-                'daily_news': 'Ежедневные сводки рыночных новостей на основе ИИ-исследований',
-                'sentiment_analysis': 'Анализ настроений рынка с помощью ИИ',
-                'predictions': 'Трендовые темы и прогнозы рынка',
-                'auto_updates': 'Автоматические ежедневные обновления (9:00 и 9:30 EST)',
+                'daily_news': 'Ежечасные обновления нефтегазовых рынков на базе ИИ',
+                'sentiment_analysis': 'Анализ нефтегазовых рынков с помощью ИИ',
+                'predictions': 'Анализ нефтяных фьючерсов и прогнозы рынка',
+                'auto_updates': 'Автоматические ежечасные обновления для тестирования',
                 'commands': 'Команды:',
                 'news_cmd': '/news - Получить последние новости рынка',
                 'notify_cmd': '/notify - Вручную отправить уведомления всем подписчикам (только для админов)',
@@ -328,7 +348,27 @@ class StockNewsBot:
                 'failed_to_send': 'Не удалось отправить',
                 'total_subscribers': 'Всего подписчиков',
                 'sent_at': 'Отправлено в',
-                'all_notified': 'Все подписчики уведомлены!'
+                'all_notified': 'Все подписчики уведомлены!',
+                'help_message': '''🤖 **AI-Only Нефтегазовый Бот**
+
+🛢️ **Специализация:** Профессиональные данные нефтегазовых рынков
+📊 **Источник:** Контент, генерируемый ИИ для демонстрации
+⏰ **Обновления:** Каждый час во время тестирования
+
+**📱 Доступные команды:**
+• `/news` - Получить последние новости нефтегазовых рынков
+• `/subscribe` - Включить ежечасные уведомления
+• `/unsubscribe` - Отключить уведомления
+• `/status` - Проверить статус бота
+• `/help` - Показать эту справку
+
+**🎯 Что вы получаете:**
+📰 Новости нефти и газа
+💰 Моделирование живых цен
+📈 Анализ фьючерсов (НОВОЕ!)
+🔮 Прогнозы рынка
+
+⚠️ **Отказ от ответственности:** Данные, генерируемые ИИ, только для демонстрации'''
             }
         }
         
@@ -1222,95 +1262,64 @@ class StockNewsBot:
             return self.get_text(user_id, 'error_fetching')
     
     async def send_ai_digest_parts(self, user_id: int, chat_id: int):
-        """Send AI digest as separate messages to avoid character limits"""
+        """Send AI-only oil & gas digest with enhanced templates"""
         try:
-            user_topics = self.db.get_user_topics(user_id)
             user_language = self.db.get_user_language(user_id)
             
-            logger.info(f"🎯 Fetching real financial data for user {user_id}: topic='{user_topics}', language='{user_language}'")
+            logger.info(f"🛢️ Generating AI-only oil & gas content for user {user_id}, language='{user_language}'")
             
-            # Check if real APIs are configured
-            news_api_key = os.getenv('NEWS_API_KEY')
-            alpha_vantage_key = os.getenv('ALPHA_VANTAGE_API_KEY')
-            fmp_api_key = os.getenv('FMP_API_KEY')
-            
-            has_real_apis = news_api_key or alpha_vantage_key or fmp_api_key
-            
-            # Send appropriate disclaimer
+            # Send AI-only disclaimer
             if user_language == 'ru':
-                if has_real_apis:
-                    disclaimer = """📊 **ПРОФЕССИОНАЛЬНЫЕ ФИНАНСОВЫЕ ДАННЫЕ**
+                disclaimer = """🤖 **AI-ONLY НЕФТЕГАЗОВЫЙ БОТ**
 
-📰 **Источники новостей:** Reuters, Bloomberg, CNBC, MarketWatch  
-📈 **Данные о ценах:** Alpha Vantage, Financial Modeling Prep
+🛢️ **Специализация:** Нефть и газ  
+🎯 **Источник данных:** ChatGPT моделирование
+📊 **Обновления:** Каждый час для тестирования
 
-⚠️ **ВАЖНО:** Информация предоставляется только в ознакомительных целях
-💡 **Не является:** Персональными инвестиционными рекомендациями
-🔍 **Рекомендация:** Консультируйтесь с финансовым консультантом
+⚠️ **ВАЖНО:** Все данные сгенерированы ИИ для демонстрации
+💡 **Не используйте:** Для реальных инвестиций
+🔍 **Цель:** Тестирование функционала
 
-Получаем актуальные данные..."""
-                else:
-                    disclaimer = """🎯 **ДЕМО-РЕЖИМ ФИНАНСОВОГО БОТА**
-
-📊 **Показываются:** Демонстрационные данные для тестирования
-🔧 **Для реальных данных:** Настройте API ключи (см. REAL_DATA_SETUP.md)
-
-⚠️ **ВАЖНО:** Это демо-данные, НЕ реальные цены
-💡 **Не используйте:** Для принятия инвестиционных решений  
-🔍 **Для реальной торговли:** Используйте профессиональные источники
-
-Показываем демо-данные..."""
+Генерируем актуальные данные..."""
             else:
-                if has_real_apis:
-                    disclaimer = """📊 **PROFESSIONAL FINANCIAL DATA**
+                disclaimer = """🤖 **AI-ONLY OIL & GAS BOT**
 
-📰 **News Sources:** Reuters, Bloomberg, CNBC, MarketWatch  
-📈 **Price Data:** Alpha Vantage, Financial Modeling Prep
+🛢️ **Specialization:** Oil & Gas sector  
+🎯 **Data Source:** ChatGPT simulation
+📊 **Updates:** Hourly for testing
 
-⚠️ **IMPORTANT:** Information provided for informational purposes only
-💡 **Not:** Personal investment recommendations
-🔍 **Recommendation:** Consult with financial advisor before investing
+⚠️ **IMPORTANT:** All data is AI-generated for demonstration
+💡 **Don't use:** For real investments
+🔍 **Purpose:** Testing functionality
 
-Fetching live data..."""
-                else:
-                    disclaimer = """🎯 **DEMO MODE FINANCIAL BOT**
-
-📊 **Showing:** Demonstration data for testing
-🔧 **For real data:** Configure API keys (see REAL_DATA_SETUP.md)
-
-⚠️ **IMPORTANT:** This is demo data, NOT real prices
-💡 **Don't use:** For investment decisions
-🔍 **For real trading:** Use professional sources
-
-Showing demo data..."""
+Generating current data..."""
             
             await self.bot.send_message(chat_id=chat_id, text=disclaimer, parse_mode='Markdown')
             await asyncio.sleep(1)
             
-            # Get topic-specific real content
-            news_items = await self.fetch_real_news(user_topics, user_language)
-            asset_items = await self.fetch_real_assets(user_topics, user_language)
-            
-            # Generate and send educational digest
-            news_digest = await self.generate_news_digest(news_items, user_topics, user_language)
+            # 🛢️ Generate oil & gas content with AI
+            # 1. Oil & Gas News
+            news_digest = await self.generate_oil_gas_news(user_language)
             await self.bot.send_message(chat_id=chat_id, text=news_digest, parse_mode='Markdown')
-            
-            # Small delay between messages
             await asyncio.sleep(0.5)
             
-            # Generate and send educational assets content
-            if asset_items:
-                assets_digest = await self.generate_assets_digest(asset_items, user_topics, user_language)
-                await self.bot.send_message(chat_id=chat_id, text=assets_digest, parse_mode='Markdown')
-                await asyncio.sleep(0.5)
+            # 2. Oil & Gas Prices
+            prices_digest = await self.generate_oil_gas_prices(user_language)
+            await self.bot.send_message(chat_id=chat_id, text=prices_digest, parse_mode='Markdown')
+            await asyncio.sleep(0.5)
             
-            # Generate and send predictions digest
-            predictions_digest = await self.generate_predictions_digest(user_topics, user_language)
-            await self.bot.send_message(chat_id=chat_id, text=predictions_digest, parse_mode='Markdown')
+            # 3. Oil Futures Analysis
+            futures_digest = await self.generate_oil_futures_analysis(user_language)
+            await self.bot.send_message(chat_id=chat_id, text=futures_digest, parse_mode='Markdown')
+            await asyncio.sleep(0.5)
+            
+            # 4. Oil & Gas Market Analysis & Predictions
+            analysis_digest = await self.generate_oil_gas_analysis(user_language)
+            await self.bot.send_message(chat_id=chat_id, text=analysis_digest, parse_mode='Markdown')
             
         except Exception as e:
-            logger.error(f"Error fetching real financial data: {e}")
-            error_msg = "❌ Произошла ошибка при получении финансовых данных" if user_language == 'ru' else "❌ Error fetching financial data"
+            logger.error(f"Error generating AI oil & gas content: {e}")
+            error_msg = "❌ Ошибка генерации нефтегазовых данных" if user_language == 'ru' else "❌ Error generating oil & gas data"
             await self.bot.send_message(chat_id=chat_id, text=error_msg)
     
     async def fetch_real_news(self, topic: str, language: str) -> List[NewsItem]:
@@ -3483,6 +3492,369 @@ JUN25: $879.80 ↗️ +0.69%
             self.application.run_polling(drop_pending_updates=True, close_loop=False),
             self.run_scheduler()
         )
+
+    # 🛢️ AI-ONLY OIL & GAS CONTENT GENERATION METHODS
+    
+    async def generate_oil_gas_news(self, language: str) -> str:
+        """Generate enhanced oil & gas news using ChatGPT"""
+        try:
+            # Add randomization for variety
+            import random
+            now = datetime.now()
+            current_date = now.strftime("%Y-%m-%d")
+            current_time = now.strftime("%H:%M UTC")
+            session_id = random.randint(1000, 9999)
+            
+            if language == 'ru':
+                prompt = f"""
+Ты профессиональный нефтегазовый аналитик. Создай реалистичные новости для демонстрации бота.
+
+Контекст: {current_date} {current_time}, сессия #{session_id}
+
+Создай 3 актуальные новости о нефти и газе:
+
+1. **Цены на нефть** - движение Brent/WTI с причинами
+2. **Газовые рынки** - European gas hubs, LNG торговля  
+3. **Компании** - Новости крупных нефтегазовых корпораций
+
+Формат для каждой новости:
+🛢️ **[ЗАГОЛОВОК]**
+📰 *Источник: [Reuters/Bloomberg/другой]*
+📊 *Цена: [указать примерную цену]*
+[Краткое описание 2-3 предложения с конкретными деталями]
+
+Используй реальные компании (Shell, BP, ExxonMobil, Gazprom, Роснефть) и биржи (ICE, NYMEX), но подчеркни что цены демонстрационные.
+Добавь эмодзи для визуальной привлекательности.
+"""
+            else:
+                prompt = f"""
+You are a professional oil & gas analyst. Create realistic news for bot demonstration.
+
+Context: {current_date} {current_time}, session #{session_id}
+
+Create 3 current oil & gas news items:
+
+1. **Oil Prices** - Brent/WTI movement with reasons
+2. **Gas Markets** - European gas hubs, LNG trading
+3. **Companies** - Major oil & gas corporation news
+
+Format for each news:
+🛢️ **[HEADLINE]**
+📰 *Source: [Reuters/Bloomberg/other]*
+📊 *Price: [indicate approximate price]*
+[Brief description 2-3 sentences with specific details]
+
+Use real companies (Shell, BP, ExxonMobil, Gazprom, Lukoil) and exchanges (ICE, NYMEX), but emphasize prices are demonstration only.
+Add emojis for visual appeal.
+"""
+            
+            response = await self.openai_client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.7,
+                max_tokens=1000
+            )
+            
+            content = response.choices[0].message.content
+            
+            # Add AI disclaimer
+            if language == 'ru':
+                disclaimer = "\n\n🤖 *Новости сгенерированы ИИ для демонстрации*"
+            else:
+                disclaimer = "\n\n🤖 *News generated by AI for demonstration*"
+            
+            return content + disclaimer
+            
+        except Exception as e:
+            logger.error(f"Error generating oil & gas news: {e}")
+            if language == 'ru':
+                return "❌ Ошибка генерации новостей о нефти и газе"
+            else:
+                return "❌ Error generating oil & gas news"
+    
+    async def generate_oil_gas_prices(self, language: str) -> str:
+        """Generate enhanced oil & gas prices using ChatGPT"""
+        try:
+            import random
+            
+            if language == 'ru':
+                prompt = f"""
+Создай красивый прайс-лист нефтегазовых инструментов для демонстрации:
+
+**🛢️ НЕФТЬ:**
+- Brent Crude (ICE)
+- WTI Crude (NYMEX) 
+- Urals (Platts)
+
+**⛽ ГАЗ:**
+- Henry Hub (NYMEX)
+- TTF (ICE)
+- JKM (Asian LNG)
+
+**🏭 ПРОДУКТЫ:**
+- Gasoil (ICE)
+- RBOB Gasoline
+- Heating Oil
+
+Для каждого инструмента используй формат:
+📊 **[Название]**
+💰 $[цена] ([валюта/единица])
+📈 +$[изменение] (+[%]%) или 📉 -$[изменение] (-[%]%)
+⏰ *Время: [указать время обновления]*
+
+Используй реалистичные цены но добавь вариативность ±5-10%.
+Добавь красивые эмодзи и четкую структуру.
+Сделай это профессионально но привлекательно.
+"""
+            else:
+                prompt = f"""
+Create beautiful oil & gas instruments price list for demonstration:
+
+**🛢️ OIL:**
+- Brent Crude (ICE)
+- WTI Crude (NYMEX)
+- Urals (Platts)
+
+**⛽ GAS:**
+- Henry Hub (NYMEX)
+- TTF (ICE)
+- JKM (Asian LNG)
+
+**🏭 PRODUCTS:**
+- Gasoil (ICE)
+- RBOB Gasoline
+- Heating Oil
+
+For each instrument use format:
+📊 **[Name]**
+💰 $[price] ([currency/unit])
+📈 +$[change] (+[%]%) or 📉 -$[change] (-[%]%)
+⏰ *Updated: [indicate update time]*
+
+Use realistic prices but add ±5-10% variation.
+Add beautiful emojis and clear structure.
+Make it professional but appealing.
+"""
+            
+            response = await self.openai_client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.7,
+                max_tokens=800
+            )
+            
+            content = response.choices[0].message.content
+            
+            # Add AI disclaimer
+            if language == 'ru':
+                disclaimer = "\n\n🤖 *Цены сгенерированы ИИ для демонстрации*"
+            else:
+                disclaimer = "\n\n🤖 *Prices generated by AI for demonstration*"
+            
+            return content + disclaimer
+            
+        except Exception as e:
+            logger.error(f"Error generating oil & gas prices: {e}")
+            if language == 'ru':
+                return "❌ Ошибка генерации цен на нефть и газ"
+            else:
+                return "❌ Error generating oil & gas prices"
+    
+    async def generate_oil_futures_analysis(self, language: str) -> str:
+        """Generate oil futures analysis - NEW FUNCTIONALITY"""
+        try:
+            import random
+            now = datetime.now()
+            current_month = now.strftime("%B %Y")
+            
+            if language == 'ru':
+                prompt = f"""
+Создай профессиональный анализ нефтяных фьючерсов для {current_month}:
+
+**📈 ФЬЮЧЕРСЫ НА НЕФТЬ:**
+
+**🛢️ Brent Crude Futures (ICE):**
+- Ближайший месяц: $[цена]
+- +1 месяц: $[цена]
+- +3 месяца: $[цена]
+- Контанго/Бэквордация: [указать структуру]
+
+**🇺🇸 WTI Crude Futures (NYMEX):**
+- Ближайший месяц: $[цена]
+- +1 месяц: $[цена]
+- +3 месяца: $[цена]
+- Спред Brent-WTI: $[разность]
+
+**📊 КЛЮЧЕВЫЕ ПОКАЗАТЕЛИ:**
+- Волатильность: [%]
+- Открытый интерес: [количество контрактов]
+- Объем торгов: [млн барр.]
+
+**🎯 ТОРГОВЫЕ СИГНАЛЫ:**
+- Техническая поддержка: $[цена]
+- Сопротивление: $[цена]
+- RSI: [значение]
+- MACD: [Бычий/Медвежий]
+
+Сделай это максимально реалистично с конкретными цифрами.
+"""
+            else:
+                prompt = f"""
+Create professional oil futures analysis for {current_month}:
+
+**📈 OIL FUTURES:**
+
+**🛢️ Brent Crude Futures (ICE):**
+- Front month: $[price]
+- +1 month: $[price]
+- +3 months: $[price]
+- Structure: [Contango/Backwardation]
+
+**🇺🇸 WTI Crude Futures (NYMEX):**
+- Front month: $[price]
+- +1 month: $[price]
+- +3 months: $[price]
+- Brent-WTI spread: $[difference]
+
+**📊 KEY METRICS:**
+- Volatility: [%]
+- Open Interest: [number of contracts]
+- Trading Volume: [million bbls]
+
+**🎯 TRADING SIGNALS:**
+- Technical Support: $[price]
+- Resistance: $[price]
+- RSI: [value]
+- MACD: [Bullish/Bearish]
+
+Make this highly realistic with specific numbers.
+"""
+            
+            response = await self.openai_client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.7,
+                max_tokens=900
+            )
+            
+            content = response.choices[0].message.content
+            
+            # Add AI disclaimer
+            if language == 'ru':
+                disclaimer = "\n\n🤖 *Анализ фьючерсов сгенерирован ИИ для демонстрации*"
+            else:
+                disclaimer = "\n\n🤖 *Futures analysis generated by AI for demonstration*"
+            
+            return content + disclaimer
+            
+        except Exception as e:
+            logger.error(f"Error generating oil futures analysis: {e}")
+            if language == 'ru':
+                return "❌ Ошибка генерации анализа нефтяных фьючерсов"
+            else:
+                return "❌ Error generating oil futures analysis"
+    
+    async def generate_oil_gas_analysis(self, language: str) -> str:
+        """Generate enhanced oil & gas market analysis using ChatGPT"""
+        try:
+            import random
+            now = datetime.now()
+            hour = now.hour
+            
+            # Time-based analysis focus
+            if 6 <= hour <= 10:
+                time_focus = "Asian markets close, European opening"
+            elif 11 <= hour <= 16:
+                time_focus = "European trading session, pre-US markets"
+            elif 17 <= hour <= 22:
+                time_focus = "US trading session, market close analysis"
+            else:
+                time_focus = "After-hours, Asian market preview"
+            
+            if language == 'ru':
+                prompt = f"""
+Создай профессиональный анализ нефтегазовых рынков для времени: {time_focus}
+
+**📊 ТЕХНИЧЕСКИЙ АНАЛИЗ:**
+- 🎯 Brent Crude: Поддержка $[цена], Сопротивление $[цена]
+- 📈 Тренд: [Восходящий/Нисходящий/Боковой]
+- 🔍 Ключевые уровни: $[цена1], $[цена2]
+- 📊 RSI: [значение] ([Перекупленность/Перепроданность/Нейтрально])
+
+**📈 ФУНДАМЕНТАЛЬНЫЕ ФАКТОРЫ:**
+- 🏛️ Запасы в США (EIA): [изменение] млн барр.
+- 🤝 ОПЕК+: [последние решения]
+- 🌍 Геополитика: [текущие риски]
+- 💵 Доллар США: [влияние на цены]
+
+**🔮 ПРОГНОЗ:**
+- 📅 1-3 дня: [направление и целевые уровни]
+- 📆 1-2 недели: [среднесрочный прогноз]
+- ⚠️ Риски: [перечислить основные]
+- 🎯 Возможности: [торговые идеи]
+
+**💡 ТОРГОВЫЕ РЕКОМЕНДАЦИИ:**
+- 🟢 Покупка: выше $[цена]
+- 🔴 Продажа: ниже $[цена]
+- 🛑 Стоп-лосс: $[цена]
+
+Используй конкретные цифры и профессиональную терминологию.
+Длина: 200-250 слов.
+"""
+            else:
+                prompt = f"""
+Create professional oil & gas market analysis for: {time_focus}
+
+**📊 TECHNICAL ANALYSIS:**
+- 🎯 Brent Crude: Support $[price], Resistance $[price]
+- 📈 Trend: [Upward/Downward/Sideways]
+- 🔍 Key levels: $[price1], $[price2]
+- 📊 RSI: [value] ([Overbought/Oversold/Neutral])
+
+**📈 FUNDAMENTAL FACTORS:**
+- 🏛️ US Inventories (EIA): [change] million bbls
+- 🤝 OPEC+: [recent decisions]
+- 🌍 Geopolitics: [current risks]
+- 💵 USD Impact: [effect on prices]
+
+**🔮 OUTLOOK:**
+- 📅 1-3 days: [direction and target levels]
+- 📆 1-2 weeks: [medium-term forecast]
+- ⚠️ Risks: [list main risks]
+- 🎯 Opportunities: [trading ideas]
+
+**💡 TRADING RECOMMENDATIONS:**
+- 🟢 Buy: above $[price]
+- 🔴 Sell: below $[price]
+- 🛑 Stop-loss: $[price]
+
+Use specific numbers and professional terminology.
+Length: 200-250 words.
+"""
+            
+            response = await self.openai_client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.7,
+                max_tokens=900
+            )
+            
+            content = response.choices[0].message.content
+            
+            # Add AI disclaimer
+            if language == 'ru':
+                disclaimer = "\n\n🤖 *Анализ сгенерирован ИИ для демонстрации*"
+            else:
+                disclaimer = "\n\n🤖 *Analysis generated by AI for demonstration*"
+            
+            return content + disclaimer
+            
+        except Exception as e:
+            logger.error(f"Error generating oil & gas analysis: {e}")
+            if language == 'ru':
+                return "❌ Ошибка генерации анализа нефтегазовых рынков"
+            else:
+                return "❌ Error generating oil & gas analysis"
 
 # Signal handler for graceful shutdown
 def signal_handler(signum, frame):
