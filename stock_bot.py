@@ -232,6 +232,15 @@ class StockNewsBot:
         self.application = Application.builder().token(bot_token).build()
         self.db = DatabaseManager()
         
+        # Initialize OpenAI client
+        import os
+        openai_api_key = os.getenv('OPENAI_API_KEY')
+        if openai_api_key:
+            self.openai_client = AsyncOpenAI(api_key=openai_api_key)
+        else:
+            self.openai_client = None
+            logger.warning("⚠️ OpenAI API key not found - AI features will be disabled")
+        
         # Topic definitions - Oil & Gas only
         self.available_topics = {
             'oil_gas': {
@@ -3465,33 +3474,55 @@ JUN25: $879.80 ↗️ +0.69%
                     logger.info("✅ Scheduled notification sent successfully")
                 finally:
                     loop.close()
+                    
+            except Exception as e:
+                logger.error(f"Error in scheduled notification: {e}")
+                import traceback
+                logger.error(f"Traceback: {traceback.format_exc()}")
+        
+        def run_startup_test():
+            """One-time startup test notification"""
+            try:
+                # Create new event loop for this thread
+                import asyncio
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                
+                # Run the notification
+                try:
+                    loop.run_until_complete(self.send_daily_notifications())
+                    logger.info("✅ Startup test notification sent successfully")
+                finally:
+                    loop.close()
                 
                 # Clear startup test after first run
                 schedule.clear('startup_test')
                 logger.info("✅ Startup test notification completed, cleared from schedule")
+                    
             except Exception as e:
-                logger.error(f"Error in scheduled notification: {e}")
+                logger.error(f"Error in startup test notification: {e}")
                 import traceback
                 logger.error(f"Traceback: {traceback.format_exc()}")
         
         # 🛢️ TESTING MODE: Send oil & gas updates every hour
         schedule.every().hour.do(run_async_notification)
         
-        # For immediate testing - send first notification in 1 minute
-        schedule.every().minute.do(run_async_notification).tag('startup_test')
+        # For immediate testing - send first notification in 30 seconds for faster testing
+        schedule.every(30).seconds.do(run_startup_test).tag('startup_test')
+        
+        # Add debug logging
+        import schedule as sched_module
+        logger.info(f"📅 Scheduled jobs count: {len(sched_module.jobs)}")
+        for i, job in enumerate(sched_module.jobs):
+            logger.info(f"   Job {i+1}: {job}")
         
         logger.info("🛢️ Oil & Gas Bot - TESTING MODE")
         logger.info("   • Hourly notifications enabled for testing")
         logger.info("   • Oil & gas market updates every 60 minutes")
-        logger.info("   • First test notification in 1 minute")
+        logger.info("   • First test notification in 30 seconds")
         logger.info("   • AI-powered mocked data from ChatGPT")
     
-    async def run_scheduler(self):
-        """Run the scheduled tasks"""
-        while True:
-            schedule.run_pending()
-            await asyncio.sleep(1)
-    
+
     def start(self):
         """Start the bot with scheduler"""
         logger.info("Starting AI-Powered Stock News Bot...")
@@ -3505,9 +3536,27 @@ JUN25: $879.80 ↗️ +0.69%
         # Start scheduler in background thread
         import threading
         def run_scheduler():
+            logger.info("🔄 Scheduler loop started")
+            loop_count = 0
             while True:
-                schedule.run_pending()
-                time.sleep(1)
+                try:
+                    jobs_before = len(schedule.jobs)
+                    schedule.run_pending()
+                    jobs_after = len(schedule.jobs)
+                    
+                    # Log every 60 iterations (roughly every minute) 
+                    loop_count += 1
+                    if loop_count % 60 == 0:
+                        logger.info(f"🔄 Scheduler heartbeat: {loop_count//60} min, {jobs_before} jobs checked")
+                        if jobs_before != jobs_after:
+                            logger.info(f"📅 Jobs count changed: {jobs_before} -> {jobs_after}")
+                    
+                    time.sleep(1)
+                except Exception as e:
+                    logger.error(f"Error in scheduler loop: {e}")
+                    import traceback
+                    logger.error(f"Scheduler traceback: {traceback.format_exc()}")
+                    time.sleep(5)  # Wait before retrying
         
         scheduler_thread = threading.Thread(target=run_scheduler, daemon=True)
         scheduler_thread.start()
@@ -3521,6 +3570,11 @@ JUN25: $879.80 ↗️ +0.69%
     async def generate_oil_gas_news(self, language: str) -> str:
         """Generate enhanced oil & gas news using ChatGPT"""
         try:
+            if not self.openai_client:
+                if language == 'ru':
+                    return "❌ Ошибка: OpenAI API не настроен"
+                else:
+                    return "❌ Error: OpenAI API not configured"
             # Add randomization for variety
             import random
             now = datetime.now()
@@ -3592,6 +3646,11 @@ Add emojis for visual appeal.
     async def generate_oil_gas_prices(self, language: str) -> str:
         """Generate enhanced oil & gas prices using ChatGPT"""
         try:
+            if not self.openai_client:
+                if language == 'ru':
+                    return "❌ Ошибка: OpenAI API не настроен"
+                else:
+                    return "❌ Error: OpenAI API not configured"
             import random
             
             if language == 'ru':
@@ -3674,6 +3733,11 @@ Make it professional but appealing.
     async def generate_oil_futures_analysis(self, language: str) -> str:
         """Generate oil futures analysis - NEW FUNCTIONALITY"""
         try:
+            if not self.openai_client:
+                if language == 'ru':
+                    return "❌ Ошибка: OpenAI API не настроен"
+                else:
+                    return "❌ Error: OpenAI API not configured"
             import random
             now = datetime.now()
             current_month = now.strftime("%B %Y")
@@ -3762,6 +3826,11 @@ Make this highly realistic with specific numbers.
     async def generate_oil_gas_analysis(self, language: str) -> str:
         """Generate enhanced oil & gas market analysis using ChatGPT"""
         try:
+            if not self.openai_client:
+                if language == 'ru':
+                    return "❌ Ошибка: OpenAI API не настроен"
+                else:
+                    return "❌ Error: OpenAI API not configured"
             import random
             now = datetime.now()
             hour = now.hour
