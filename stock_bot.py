@@ -3408,9 +3408,12 @@ JUN25: $879.80 ↗️ +0.69%
                 status_msg = f"📅 **Scheduled Jobs ({len(jobs)} active):**\n\n"
                 for i, job in enumerate(jobs, 1):
                     next_run = job.next_run.strftime('%Y-%m-%d %H:%M:%S') if job.next_run else "Not scheduled"
-                    status_msg += f"{i}. **Daily Notifications**\n"
+                    job_type = "Startup Test" if hasattr(job, 'tags') and 'startup_test' in job.tags else "Regular Notifications"
+                    interval = f"{job.interval} {job.unit}" if job.interval != 1 else job.unit
+                    status_msg += f"{i}. **{job_type}**\n"
                     status_msg += f"   ⏰ Next run: {next_run}\n"
-                    status_msg += f"   🔄 Frequency: {job.unit}\n\n"
+                    status_msg += f"   🔄 Frequency: Every {interval}\n"
+                    status_msg += f"   🏷️ Tags: {getattr(job, 'tags', 'None')}\n\n"
                 
                 # Add current time info
                 from datetime import datetime
@@ -3427,35 +3430,48 @@ JUN25: $879.80 ↗️ +0.69%
     async def send_daily_notifications(self):
         """Send daily AI-powered notifications to all subscribers"""
         try:
+            from datetime import datetime
+            start_time = datetime.now()
+            logger.info(f"🔔 Starting notification batch at {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
+            
             subscribers = self.db.get_subscribed_users()
             if not subscribers:
                 logger.info("No subscribers found for daily notifications")
                 return
+            
+            logger.info(f"📤 Sending notifications to {len(subscribers)} subscribers: {subscribers}")
             
             successful_sends = 0
             failed_sends = 0
             
             for user_id in subscribers:
                 try:
+                    logger.info(f"📨 Sending notification to user {user_id}")
                     # Send personalized AI digest parts for each user
                     await self.send_ai_digest_parts(user_id, user_id)
                     successful_sends += 1
+                    logger.info(f"✅ Successfully sent to user {user_id}")
                     
                     # Rate limiting
                     await asyncio.sleep(0.1)
                     
                 except Exception as e:
-                    logger.error(f"Failed to send daily notification to user {user_id}: {e}")
+                    logger.error(f"❌ Failed to send daily notification to user {user_id}: {e}")
                     failed_sends += 1
                     
                     # If user blocked bot, unsubscribe them
                     if "bot was blocked" in str(e).lower():
                         self.db.unsubscribe_user(user_id)
+                        logger.info(f"🚫 Unsubscribed user {user_id} (bot was blocked)")
             
-            logger.info(f"Daily notifications sent to {successful_sends} users, {failed_sends} failed")
+            end_time = datetime.now()
+            duration = (end_time - start_time).total_seconds()
+            logger.info(f"🎯 Notification batch completed in {duration:.1f}s: {successful_sends} sent, {failed_sends} failed")
             
         except Exception as e:
-            logger.error(f"Error sending daily notifications: {e}")
+            logger.error(f"💥 Critical error in send_daily_notifications: {e}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
     
     def schedule_daily_summaries(self):
         """Schedule hourly oil & gas updates for testing"""
@@ -3504,8 +3520,8 @@ JUN25: $879.80 ↗️ +0.69%
                 import traceback
                 logger.error(f"Traceback: {traceback.format_exc()}")
         
-        # 🛢️ TESTING MODE: Send oil & gas updates every hour
-        schedule.every().hour.do(run_async_notification)
+        # 🛢️ TESTING MODE: Send oil & gas updates every 10 minutes for debugging
+        schedule.every(10).minutes.do(run_async_notification)
         
         # For immediate testing - send first notification in 30 seconds for faster testing
         schedule.every(30).seconds.do(run_startup_test).tag('startup_test')
@@ -3517,8 +3533,8 @@ JUN25: $879.80 ↗️ +0.69%
             logger.info(f"   Job {i+1}: {job}")
         
         logger.info("🛢️ Oil & Gas Bot - TESTING MODE")
-        logger.info("   • Hourly notifications enabled for testing")
-        logger.info("   • Oil & gas market updates every 60 minutes")
+        logger.info("   • 10-minute notifications enabled for debugging")
+        logger.info("   • Oil & gas market updates every 10 minutes")
         logger.info("   • First test notification in 30 seconds")
         logger.info("   • AI-powered mocked data from ChatGPT")
     
@@ -3544,12 +3560,16 @@ JUN25: $879.80 ↗️ +0.69%
                     schedule.run_pending()
                     jobs_after = len(schedule.jobs)
                     
-                    # Log every 60 iterations (roughly every minute) 
+                    # Log frequently in first 5 minutes, then every minute
                     loop_count += 1
-                    if loop_count % 60 == 0:
+                    if loop_count <= 300:  # First 5 minutes
+                        if loop_count % 30 == 0:  # Every 30 seconds
+                            logger.info(f"🔄 Scheduler heartbeat: {loop_count}s, {jobs_before} jobs checked")
+                    elif loop_count % 60 == 0:  # Every minute after that
                         logger.info(f"🔄 Scheduler heartbeat: {loop_count//60} min, {jobs_before} jobs checked")
-                        if jobs_before != jobs_after:
-                            logger.info(f"📅 Jobs count changed: {jobs_before} -> {jobs_after}")
+                    
+                    if jobs_before != jobs_after:
+                        logger.info(f"📅 Jobs count changed: {jobs_before} -> {jobs_after}")
                     
                     time.sleep(1)
                 except Exception as e:
